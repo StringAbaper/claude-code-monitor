@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Monitor</title>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --surface: #111;
+  --surface2: #161616;
+  --surface-hover: #1a1a1a;
+  --border: #222;
+  --border-light: #333;
+  --text: #e5e5e5;
+  --text-muted: #888;
+  --text-dim: #555;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.08);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245,158,11,0.07);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.07);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.07);
+  --gray: #6b7280;
+  --purple: #8b5cf6;
+  --purple-bg: rgba(139,92,246,0.07);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;line-height:1.5}
+
+/* ── Layout ── */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.sidebar-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:16px;font-weight:700;letter-spacing:-0.5px}.logo span{color:var(--purple)}
+.header-right{display:flex;align-items:center;gap:10px}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--gray)}
+.conn-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+
+.sidebar-toolbar{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center}
+.toggle-sm{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none}
+.toggle-sm input{accent-color:var(--purple);width:13px;height:13px}
+.toggle-sm.active{color:var(--amber)}
+.toggle-sm.danger{color:var(--red);font-weight:600}
+.toggle-sm.danger input{accent-color:var(--red)}
+.btn-xs{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer}
+.btn-xs:hover{color:var(--text);border-color:var(--border-light)}
+
+.sidebar-list{flex:1;overflow-y:auto}
+.sidebar-empty{padding:40px 16px;text-align:center;color:var(--text-dim);font-size:13px}
+
+/* Sidebar Item */
+.si{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;border-left:3px solid transparent}
+.si:hover{background:var(--surface-hover)}
+.si.selected{background:var(--purple-bg);border-left-color:var(--purple)}
+.si.has-approval{background:var(--amber-bg)}
+.si-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.si-name{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.si-dot.working{background:var(--green);box-shadow:0 0 4px var(--green)}
+.si-dot.waiting_permission{background:var(--amber);animation:blink 1.2s ease-in-out infinite}
+.si-dot.idle{background:var(--blue)}
+.si-dot.stopped{background:var(--gray)}
+.si-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px}
+.si-badge.working{color:var(--green);background:var(--green-bg)}
+.si-badge.waiting_permission{color:var(--amber);background:var(--amber-bg)}
+.si-badge.idle{color:var(--blue);background:var(--blue-bg)}
+.si-badge.stopped{color:var(--gray);background:rgba(107,114,128,0.1)}
+.si-activity{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-meta{display:flex;gap:8px;font-size:10px;color:var(--text-dim);margin-top:2px}
+.approval-badge{background:var(--amber);color:#000;font-size:9px;font-weight:700;padding:0 5px;border-radius:3px;margin-left:auto}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* ── Main Panel ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.main-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:14px;text-align:center;padding:40px}
+.main-empty p{max-width:300px;line-height:1.8}
+.main-empty code{background:var(--surface);padding:2px 8px;border-radius:4px;font-size:12px;color:var(--purple)}
+
+/* Approval Banner (always visible at top) */
+.approval-banner{padding:12px 20px;background:var(--amber-bg);border-bottom:1px solid rgba(245,158,11,0.2)}
+.ab-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--amber);font-weight:700;margin-bottom:8px}
+.ab-cards{display:flex;flex-direction:column;gap:8px}
+.ab-card{background:var(--surface2);border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px 16px}
+.ab-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ab-tool{font-weight:600;color:var(--amber);font-size:13px}
+.ab-project{font-size:11px;color:var(--text-muted)}
+.ab-desc{font-family:'Cascadia Code','Consolas',monospace;font-size:12px;color:var(--text);padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:10px;word-break:break-all;line-height:1.5;max-height:80px;overflow-y:auto}
+.ab-actions{display:flex;justify-content:space-between;align-items:center}
+.ab-btns{display:flex;gap:8px}
+.btn-allow{background:var(--green);color:#000;border:none;padding:6px 22px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s}
+.btn-allow:hover{filter:brightness(1.15)}
+.btn-allow:disabled{opacity:0.3;cursor:default}
+.btn-deny{background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);padding:5px 18px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s}
+.btn-deny:hover{background:var(--red-bg)}
+.btn-deny:disabled{opacity:0.3;cursor:default}
+.ab-timer{font-size:11px;color:var(--text-muted);font-family:'Cascadia Code',monospace}
+.ab-timer.warn{color:var(--amber)}.ab-timer.expired{color:var(--red)}
+
+/* Detail Panel */
+.detail{flex:1}
+.detail-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+.detail-title{font-size:20px;font-weight:700}
+.detail-actions{display:flex;gap:6px}
+.btn-focus{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,0.2);padding:5px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s}
+.btn-focus:hover{background:rgba(59,130,246,0.15)}
+.btn-remove{background:none;border:1px solid var(--border);color:var(--text-dim);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.btn-remove:hover{color:var(--red);border-color:rgba(239,68,68,0.3)}
+
+.detail-info{padding:16px 24px;display:grid;grid-template-columns:100px 1fr;gap:6px 16px;font-size:13px;border-bottom:1px solid var(--border)}
+.detail-info dt{color:var(--text-muted)}
+.detail-info dd{color:var(--text);font-family:'Cascadia Code','Consolas',monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.detail-activity{padding:16px 24px;border-bottom:1px solid var(--border)}
+.detail-activity-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
+.detail-activity-text{font-size:14px;color:var(--text)}
+.detail-activity-text .tool{color:var(--purple);font-weight:600}
+
+/* Event Log */
+.event-section{flex:1;display:flex;flex-direction:column;min-height:0}
+.event-header{padding:12px 24px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600}
+.event-list{flex:1;overflow-y:auto;padding-bottom:20px}
+.ev{padding:5px 24px;font-size:12px;display:flex;gap:12px;font-family:'Cascadia Code','Consolas',monospace}
+.ev:hover{background:var(--surface)}
+.ev-time{color:var(--text-dim);white-space:nowrap;min-width:60px}
+.ev-type{color:var(--purple);min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-detail{color:var(--text-muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-light)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
+<script>
+const{createElement,useState,useEffect,useRef,useCallback}=React;
+const html=htm.bind(createElement);
+
+// ── Helpers ──
+function timeAgo(ts){const d=Date.now()-ts;if(d<5e3)return'now';if(d<6e4)return(d/1e3|0)+'s';if(d<36e5)return(d/6e4|0)+'m';if(d<864e5)return(d/36e5|0)+'h';return(d/864e5|0)+'d'}
+function clockTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+function duration(ms){const m=ms/6e4|0;if(m<60)return m+'m';return(m/60|0)+'h '+(m%60)+'m'}
+
+const STATUS={working:'Working',waiting_permission:'Permission',idle:'Idle',stopped:'Stopped',unknown:'Unknown'};
+
+let audioCtx;
+function playAlert(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const n=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(880,n);o.frequency.setValueAtTime(660,n+.12);o.frequency.setValueAtTime(880,n+.24);g.gain.setValueAtTime(.25,n);g.gain.exponentialRampToValueAtTime(.01,n+.5);o.start(n);o.stop(n+.5)}catch{}}
+function notify(t,b){try{if(Notification.permission==='granted')new Notification(t,{body:b,tag:'cm-'+Date.now()})}catch{}}
+
+// ── Sidebar Item ──
+function SidebarItem({s, selected, approvalCount, onClick}){
+  return html`
+    <div className=${`si ${selected?'selected':''} ${approvalCount>0?'has-approval':''}`} onClick=${onClick}>
+      <div className="si-top">
+        <div className="si-name">
+          <div className=${`si-dot ${s.status}`}></div>
+          ${s.project}
+        </div>
+        <span className=${`si-badge ${s.status}`}>${STATUS[s.status]||s.status}</span>
+      </div>
+      <div className="si-activity">${s.activityText||'No activity'}</div>
+      <div className="si-meta">
+        <span>${timeAgo(s.lastActivity)}</span>
+        <span>${s.eventCount} events</span>
+        ${approvalCount>0&&html`<span className="approval-badge">${approvalCount}</span>`}
+      </div>
+    </div>
+  `;
+}
+
+// ── Approval Card ──
+function ApprovalCard({a,onDecide}){
+  const[elapsed,setElapsed]=useState(0);
+  useEffect(()=>{const t=setInterval(()=>setElapsed((Date.now()-a.createdAt)/1e3|0),500);return()=>clearInterval(t)},[a.createdAt]);
+  const expired=elapsed>120;
+  const tc=expired?'expired':elapsed>90?'warn':'';
+  return html`
+    <div className="ab-card">
+      <div className="ab-card-top">
+        <span className="ab-tool">${a.toolName}</span>
+        <span className="ab-project">${a.project}</span>
+      </div>
+      <div className="ab-desc">${a.description}</div>
+      <div className="ab-actions">
+        <div className="ab-btns">
+          <button className="btn-allow" onClick=${()=>onDecide(a.id,'allow')} disabled=${expired}>Allow</button>
+          <button className="btn-deny" onClick=${()=>onDecide(a.id,'deny')} disabled=${expired}>Deny</button>
+        </div>
+        <span className=${`ab-timer ${tc}`}>${expired?'Expired':elapsed+'s'}</span>
+      </div>
+    </div>
+  `;
+}
+
+// ── Detail Panel ──
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove}){
+  if(!s) return html`
+    <div className="main-empty">
+      <p>Select a session from the left panel to view details.<br/><br/>
+        Make sure hooks are installed:<br/><code>npm run install-hooks</code>
+      </p>
+    </div>
+  `;
+
+  const sessionApprovals = approvals.filter(a=>a.sessionId===s.id && a.status==='pending');
+
+  return html`
+    <div className="detail">
+      <div className="detail-header">
+        <div className="detail-title">${s.project}</div>
+        <div className="detail-actions">
+          <button className="btn-focus" onClick=${()=>onFocus(s.id)}>Focus Window</button>
+          <button className="btn-remove" onClick=${()=>onRemove(s.id)}>Remove</button>
+        </div>
+      </div>
+
+      <dl className="detail-info">
+        <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
+        <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
+        <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
+        <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
+        <dt>Events</dt><dd>${s.eventCount}</dd>
+      </dl>
+
+      <div className="detail-activity">
+        <div className="detail-activity-label">Current Activity</div>
+        <div className="detail-activity-text">
+          ${s.currentTool
+            ? html`<span className="tool">${s.currentTool}</span> ${s.toolDetail||''}`
+            : (s.activityText||'No activity')}
+        </div>
+      </div>
+
+      ${sessionApprovals.length>0 && html`
+        <div className="approval-banner" style=${{borderTop:'1px solid rgba(245,158,11,0.2)'}}>
+          <div className="ab-title">Pending Approval</div>
+          <div className="ab-cards">
+            ${sessionApprovals.map(a=>html`<${ApprovalCard} key=${a.id} a=${a} onDecide=${onDecide}/>`)}
+          </div>
+        </div>
+      `}
+
+      <div className="event-section">
+        <div className="event-header">Recent Events (${s.recentEvents.length})</div>
+        <div className="event-list">
+          ${s.recentEvents.map((ev,i)=>html`
+            <div className="ev" key=${i}>
+              <span className="ev-time">${clockTime(ev.time)}</span>
+              <span className="ev-type">${ev.tool||ev.type}</span>
+              <span className="ev-detail" title=${ev.detail||''}>${ev.detail||''}</span>
+            </div>
+          `)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── App ──
+function App(){
+  const[sessions,setSessions]=useState([]);
+  const[pending,setPending]=useState([]);
+  const[remoteApproval,setRemoteApproval]=useState(true);
+  const[autoApprove,setAutoApprove]=useState(false);
+  const[connected,setConnected]=useState(false);
+  const[sound,setSound]=useState(true);
+  const[selectedId,setSelectedId]=useState(null);
+  const[tick,setTick]=useState(0);
+  const wsRef=useRef(null);
+  const reconnRef=useRef(null);
+
+  useEffect(()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()},[]);
+  useEffect(()=>{const t=setInterval(()=>setTick(k=>k+1),5e3);return()=>clearInterval(t)},[]);
+
+  // Tab title
+  useEffect(()=>{
+    const n=pending.filter(a=>a.status==='pending').length+sessions.filter(s=>s.status==='waiting_permission').length;
+    document.title=n>0?'('+n+') Claude Monitor':'Claude Monitor';
+  },[sessions,pending]);
+
+  // Auto-select first session or session with new approval
+  useEffect(()=>{
+    if(sessions.length>0&&!sessions.find(s=>s.id===selectedId)){
+      setSelectedId(sessions[0].id);
+    }
+  },[sessions]);
+
+  // WebSocket
+  const connect=useCallback(()=>{
+    if(wsRef.current&&wsRef.current.readyState<=1)return;
+    const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws');
+    ws.onopen=()=>{setConnected(true);if(reconnRef.current){clearTimeout(reconnRef.current);reconnRef.current=null}};
+    ws.onclose=()=>{setConnected(false);wsRef.current=null;reconnRef.current=setTimeout(connect,3e3)};
+    ws.onerror=()=>ws.close();
+    ws.onmessage=e=>{try{
+      const d=JSON.parse(e.data);
+      if(d.sessions)setSessions(d.sessions);
+      if(d.pendingApprovals)setPending(d.pendingApprovals);
+      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled)}
+      if(d.alert){
+        if(sound)playAlert();
+        if(d.alert.type==='permission')notify('Permission Required',d.alert.session.project+' needs permission');
+        if(d.alert.type==='approval'){
+          notify('Approval Required',d.alert.approval.toolName+' in '+d.alert.approval.project);
+          setSelectedId(d.alert.approval.sessionId);
+        }
+      }
+    }catch{}};
+    wsRef.current=ws;
+  },[sound]);
+
+  useEffect(()=>{connect();return()=>{if(wsRef.current)wsRef.current.close();if(reconnRef.current)clearTimeout(reconnRef.current)}},[connect]);
+
+  const focusSession=useCallback(id=>{fetch('/api/sessions/'+id+'/focus',{method:'POST'}).catch(()=>{})},[]);
+  const removeSession=useCallback(id=>{fetch('/api/sessions/'+id,{method:'DELETE'}).catch(()=>{});if(selectedId===id)setSelectedId(null)},[selectedId]);
+  const clearStopped=useCallback(()=>{fetch('/api/clear-stopped',{method:'POST'}).catch(()=>{})},[]);
+  const toggleRA=useCallback(()=>{const v=!remoteApproval;setRemoteApproval(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remoteApprovalEnabled:v})}).catch(()=>{})},[remoteApproval]);
+  const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove]);
+  const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:dec})}).catch(()=>{})},[]);
+
+  const selected=sessions.find(s=>s.id===selectedId)||null;
+  const globalPending=pending.filter(a=>a.status==='pending');
+  const stoppedCount=sessions.filter(s=>s.status==='stopped').length;
+
+  // Count pending approvals per session
+  const approvalCounts={};
+  globalPending.forEach(a=>{approvalCounts[a.sessionId]=(approvalCounts[a.sessionId]||0)+1});
+
+  return html`
+    <div className="app">
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="logo"><span>Claude</span> Monitor</div>
+          <div className="header-right">
+            <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
+          </div>
+        </div>
+
+        <div className="sidebar-toolbar" style=${{flexWrap:'wrap'}}>
+          <label className=${`toggle-sm ${remoteApproval?'active':''}`}>
+            <input type="checkbox" checked=${remoteApproval} onChange=${toggleRA}/>
+            Remote Approval
+          </label>
+          <label className="toggle-sm">
+            <input type="checkbox" checked=${sound} onChange=${e=>setSound(e.target.checked)}/>
+            Sound
+          </label>
+          ${stoppedCount>0&&html`<button className="btn-xs" onClick=${clearStopped}>Clear</button>`}
+          ${remoteApproval&&html`
+            <label className=${`toggle-sm ${autoApprove?'danger':''}`} title="Automatically approve all permission requests">
+              <input type="checkbox" checked=${autoApprove} onChange=${toggleAA}/>
+              Auto-Approve ${autoApprove?'(⚠ Dangerous)':''}
+            </label>
+          `}
+        </div>
+
+        <div className="sidebar-list">
+          ${sessions.length===0
+            ? html`<div className="sidebar-empty">No sessions yet.<br/>Hooks are active — start using Claude Code.</div>`
+            : sessions.map(s=>html`
+              <${SidebarItem}
+                key=${s.id} s=${s}
+                selected=${s.id===selectedId}
+                approvalCount=${approvalCounts[s.id]||0}
+                onClick=${()=>setSelectedId(s.id)}
+              />
+            `)
+          }
+        </div>
+      </div>
+
+      <div className="main">
+        ${globalPending.length>0 && (!selected || !globalPending.some(a=>a.sessionId===selectedId)) && html`
+          <div className="approval-banner">
+            <div className="ab-title">Pending Approvals (${globalPending.length})</div>
+            <div className="ab-cards">
+              ${globalPending.map(a=>html`<${ApprovalCard} key=${a.id} a=${a} onDecide=${decideApproval}/>`)}
+            </div>
+          </div>
+        `}
+        <${DetailPanel}
+          s=${selected}
+          approvals=${pending}
+          onDecide=${decideApproval}
+          onFocus=${focusSession}
+          onRemove=${removeSession}
+        />
+      </div>
+    </div>
+  `;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+</script>
+</body>
+</html>

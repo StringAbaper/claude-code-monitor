@@ -1,0 +1,15 @@
+{
+  "name": "claude-monitor",
+  "version": "1.0.0",
+  "description": "Real-time monitor for Claude Code sessions on Windows",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-hooks": "node install-hooks.js",
+    "uninstall-hooks": "node install-hooks.js --remove"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}

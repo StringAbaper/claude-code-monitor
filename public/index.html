@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Claude Monitor</title>
+<title>Claude Code Monitor</title>
 <style>
 :root {
   --bg: #0a0a0a;
@@ -125,16 +125,107 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .event-section{flex:1;display:flex;flex-direction:column;min-height:0}
 .event-header{padding:12px 24px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600}
 .event-list{flex:1;overflow-y:auto;padding-bottom:20px}
-.ev{padding:5px 24px;font-size:12px;display:flex;gap:12px;font-family:'Cascadia Code','Consolas',monospace}
+.ev{padding:5px 24px;font-size:12px;display:flex;gap:12px;font-family:'Cascadia Code','Consolas',monospace;align-items:center}
 .ev:hover{background:var(--surface)}
 .ev-time{color:var(--text-dim);white-space:nowrap;min-width:60px}
 .ev-type{color:var(--purple);min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ev-detail{color:var(--text-muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-tag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;white-space:nowrap;letter-spacing:0.3px;flex-shrink:0}
+.ev-tag.auto{background:rgba(34,197,94,0.12);color:var(--green)}
+.ev-tag.user-allow{background:rgba(59,130,246,0.12);color:var(--blue)}
+.ev-tag.user-deny{background:rgba(239,68,68,0.12);color:var(--red)}
+.ev-tag.pending{background:rgba(245,158,11,0.12);color:var(--amber);animation:blink 1.2s ease-in-out infinite}
+.ev-tag.complete{background:rgba(139,92,246,0.12);color:var(--purple)}
+.ev.ev-auto{border-left:2px solid var(--green);padding-left:22px}
+.ev.ev-user-allow{border-left:2px solid var(--blue);padding-left:22px}
+.ev.ev-user-deny{border-left:2px solid var(--red);padding-left:22px}
+.ev.ev-pending{border-left:2px solid var(--amber);padding-left:22px}
+.ev.ev-complete{border-left:2px solid var(--purple);padding-left:22px}
 
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--border-light)}
+
+/* ── Mobile ── */
+.btn-back{display:none;background:none;border:none;color:var(--text-muted);font-size:13px;cursor:pointer;padding:4px 0;margin-bottom:4px}
+.btn-back:hover{color:var(--text)}
+
+/* Narrower sidebar on medium screens */
+@media(max-width:1024px){
+  .sidebar{width:240px}
+}
+
+@media(max-width:768px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;height:100vh;border-right:none}
+  .main{display:none;width:100%;height:100vh}
+
+  /* When a session is selected on mobile, show main and hide sidebar */
+  .app.mobile-detail .sidebar{display:none}
+  .app.mobile-detail .main{display:flex}
+
+  .btn-back{display:flex;align-items:center;gap:4px}
+  .btn-back::before{content:'←';font-size:16px}
+
+  /* Compact sidebar header + toolbar */
+  .sidebar-header{padding:8px 12px}
+  .logo{font-size:14px}
+  .sidebar-toolbar{flex-wrap:wrap;gap:4px 10px;padding:6px 10px}
+  .toggle-sm{font-size:10px}
+  .toggle-sm input{width:12px;height:12px}
+
+  /* Compact sidebar items */
+  .si{padding:8px 12px}
+  .si-name{font-size:12px;gap:5px}
+  .si-dot{width:6px;height:6px}
+  .si-activity{font-size:10px}
+  .si-meta{font-size:9px;margin-top:1px}
+  .si-badge{font-size:9px;padding:0 5px}
+
+  /* Detail adjustments */
+  .detail-header{padding:12px 16px 10px;flex-wrap:wrap;gap:8px}
+  .detail-title{font-size:17px;width:100%}
+  .detail-info{padding:12px 16px;grid-template-columns:80px 1fr;gap:4px 12px;font-size:12px}
+  .detail-activity{padding:10px 16px}
+  .detail-activity-label{font-size:10px;margin-bottom:4px}
+  .event-header{padding:8px 16px 4px;font-size:10px}
+  .ev{padding:4px 12px;font-size:11px;gap:6px}
+  .ev-type{min-width:65px}
+  .ev-time{min-width:48px;font-size:10px}
+
+  /* Approval cards — compact for mobile */
+  .approval-banner{padding:8px 12px}
+  .ab-title{font-size:10px;margin-bottom:6px}
+  .ab-card{padding:10px 12px;border-radius:8px}
+  .ab-card-top{margin-bottom:4px}
+  .ab-tool{font-size:12px}
+  .ab-desc{font-size:11px;max-height:60px;padding:6px 8px;margin-bottom:8px}
+  .ab-actions{flex-wrap:wrap;gap:6px}
+  .ab-btns{flex:1;display:flex;gap:6px}
+  .btn-allow,.btn-deny{flex:1;text-align:center;padding:7px 10px;font-size:12px}
+
+  /* Focus button less prominent on mobile (can't focus windows from phone) */
+  .btn-focus{font-size:11px;padding:4px 10px}
+
+  .main-empty{padding:24px 16px}
+  .main-empty p{font-size:13px}
+}
+
+@media(max-width:400px){
+  .sidebar-header{padding:6px 10px}
+  .sidebar-toolbar{padding:5px 10px;gap:3px 8px}
+  .si{padding:7px 10px}
+  .si-name{font-size:11px}
+  .detail-title{font-size:15px}
+  .detail-header{padding:10px 12px 8px;gap:6px}
+  .detail-info{padding:10px 12px;grid-template-columns:70px 1fr;font-size:11px}
+  .detail-activity{padding:8px 12px}
+  .ev{padding:3px 10px;font-size:10px;gap:4px}
+  .ev-type{min-width:55px;font-size:10px}
+  .detail-actions{width:100%;display:flex}
+  .detail-actions button{flex:1}
+}
 </style>
 </head>
 <body>
@@ -154,7 +245,11 @@ function duration(ms){const m=ms/6e4|0;if(m<60)return m+'m';return(m/60|0)+'h '+
 const STATUS={working:'Working',waiting_permission:'Permission',idle:'Idle',stopped:'Stopped',unknown:'Unknown'};
 
 let audioCtx;
-function playAlert(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const n=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.frequency.setValueAtTime(880,n);o.frequency.setValueAtTime(660,n+.12);o.frequency.setValueAtTime(880,n+.24);g.gain.setValueAtTime(.25,n);g.gain.exponentialRampToValueAtTime(.01,n+.5);o.start(n);o.stop(n+.5)}catch{}}
+function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+// Alert: urgent descending tone for permission/approval
+function playAlert(){try{const c=ensureAudio(),n=c.currentTime,o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.setValueAtTime(880,n);o.frequency.setValueAtTime(660,n+.12);o.frequency.setValueAtTime(880,n+.24);g.gain.setValueAtTime(.25,n);g.gain.exponentialRampToValueAtTime(.01,n+.5);o.start(n);o.stop(n+.5)}catch{}}
+// Complete: pleasant ascending chime for task done
+function playComplete(){try{const c=ensureAudio(),n=c.currentTime;[523.25,659.25,783.99].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.connect(g);g.connect(c.destination);o.frequency.setValueAtTime(f,n+i*.12);g.gain.setValueAtTime(.18,n+i*.12);g.gain.exponentialRampToValueAtTime(.01,n+i*.12+.35);o.start(n+i*.12);o.stop(n+i*.12+.35)})}catch{}}
 function notify(t,b){try{if(Notification.permission==='granted')new Notification(t,{body:b,tag:'cm-'+Date.now()})}catch{}}
 
 // ── Sidebar Item ──
@@ -203,7 +298,7 @@ function ApprovalCard({a,onDecide}){
 }
 
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack}){
   if(!s) return html`
     <div className="main-empty">
       <p>Select a session from the left panel to view details.<br/><br/>
@@ -217,6 +312,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove}){
   return html`
     <div className="detail">
       <div className="detail-header">
+        <button className="btn-back" onClick=${onBack}>Back</button>
         <div className="detail-title">${s.project}</div>
         <div className="detail-actions">
           <button className="btn-focus" onClick=${()=>onFocus(s.id)}>Focus Window</button>
@@ -253,13 +349,20 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove}){
       <div className="event-section">
         <div className="event-header">Recent Events (${s.recentEvents.length})</div>
         <div className="event-list">
-          ${s.recentEvents.map((ev,i)=>html`
-            <div className="ev" key=${i}>
-              <span className="ev-time">${clockTime(ev.time)}</span>
-              <span className="ev-type">${ev.tool||ev.type}</span>
-              <span className="ev-detail" title=${ev.detail||''}>${ev.detail||''}</span>
-            </div>
-          `)}
+          ${s.recentEvents.map((ev,i)=>{
+            const ac=ev.approval;
+            const isCmp=ev.type==='Stop';
+            const evCls='ev'+(ac==='auto'?' ev-auto':ac==='user_allow'?' ev-user-allow':ac==='user_deny'?' ev-user-deny':ac==='pending'?' ev-pending':isCmp?' ev-complete':'');
+            const tagCls=ac==='auto'?'auto':ac==='user_allow'?'user-allow':ac==='user_deny'?'user-deny':ac==='pending'?'pending':isCmp?'complete':null;
+            const tagText=ac==='auto'?'AUTO':ac==='user_allow'?'ALLOWED':ac==='user_deny'?'DENIED':ac==='pending'?'PENDING':isCmp?'DONE':null;
+            return html`
+              <div className=${evCls} key=${i}>
+                <span className="ev-time">${clockTime(ev.time)}</span>
+                <span className="ev-type">${ev.tool||ev.type}</span>
+                <span className="ev-detail" title=${ev.detail||''}>${ev.detail||''}</span>
+                ${tagText&&html`<span className=${`ev-tag ${tagCls}`}>${tagText}</span>`}
+              </div>
+            `})}
         </div>
       </div>
     </div>
@@ -276,6 +379,7 @@ function App(){
   const[sound,setSound]=useState(true);
   const[selectedId,setSelectedId]=useState(null);
   const[tick,setTick]=useState(0);
+  const[mobileDetail,setMobileDetail]=useState(false);
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
 
@@ -285,7 +389,7 @@ function App(){
   // Tab title
   useEffect(()=>{
     const n=pending.filter(a=>a.status==='pending').length+sessions.filter(s=>s.status==='waiting_permission').length;
-    document.title=n>0?'('+n+') Claude Monitor':'Claude Monitor';
+    document.title=n>0?'('+n+') Claude Code Monitor':'Claude Code Monitor';
   },[sessions,pending]);
 
   // Auto-select first session or session with new approval
@@ -308,11 +412,16 @@ function App(){
       if(d.pendingApprovals)setPending(d.pendingApprovals);
       if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled)}
       if(d.alert){
-        if(sound)playAlert();
+        if(d.alert.type==='complete'){
+          if(sound)playComplete();
+          notify('Task Complete',d.alert.session.project+' — '+d.alert.detail);
+        } else {
+          if(sound)playAlert();
+        }
         if(d.alert.type==='permission')notify('Permission Required',d.alert.session.project+' needs permission');
         if(d.alert.type==='approval'){
           notify('Approval Required',d.alert.approval.toolName+' in '+d.alert.approval.project);
-          setSelectedId(d.alert.approval.sessionId);
+          setSelectedId(d.alert.approval.sessionId);setMobileDetail(true);
         }
       }
     }catch{}};
@@ -322,7 +431,7 @@ function App(){
   useEffect(()=>{connect();return()=>{if(wsRef.current)wsRef.current.close();if(reconnRef.current)clearTimeout(reconnRef.current)}},[connect]);
 
   const focusSession=useCallback(id=>{fetch('/api/sessions/'+id+'/focus',{method:'POST'}).catch(()=>{})},[]);
-  const removeSession=useCallback(id=>{fetch('/api/sessions/'+id,{method:'DELETE'}).catch(()=>{});if(selectedId===id)setSelectedId(null)},[selectedId]);
+  const removeSession=useCallback(id=>{fetch('/api/sessions/'+id,{method:'DELETE'}).catch(()=>{});if(selectedId===id){setSelectedId(null);setMobileDetail(false)}},[selectedId]);
   const clearStopped=useCallback(()=>{fetch('/api/clear-stopped',{method:'POST'}).catch(()=>{})},[]);
   const toggleRA=useCallback(()=>{const v=!remoteApproval;setRemoteApproval(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remoteApprovalEnabled:v})}).catch(()=>{})},[remoteApproval]);
   const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove]);
@@ -337,10 +446,10 @@ function App(){
   globalPending.forEach(a=>{approvalCounts[a.sessionId]=(approvalCounts[a.sessionId]||0)+1});
 
   return html`
-    <div className="app">
+    <div className=${`app ${mobileDetail?'mobile-detail':''}`}>
       <div className="sidebar">
         <div className="sidebar-header">
-          <div className="logo"><span>Claude</span> Monitor</div>
+          <div className="logo"><span>Claude Code</span> Monitor</div>
           <div className="header-right">
             <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
           </div>
@@ -372,7 +481,7 @@ function App(){
                 key=${s.id} s=${s}
                 selected=${s.id===selectedId}
                 approvalCount=${approvalCounts[s.id]||0}
-                onClick=${()=>setSelectedId(s.id)}
+                onClick=${()=>{setSelectedId(s.id);setMobileDetail(true)}}
               />
             `)
           }
@@ -394,6 +503,7 @@ function App(){
           onDecide=${decideApproval}
           onFocus=${focusSession}
           onRemove=${removeSession}
+          onBack=${()=>setMobileDetail(false)}
         />
       </div>
     </div>

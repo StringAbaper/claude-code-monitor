@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Hook handler for Claude Code → Claude Monitor.
+// Hook handler for Claude Code → Claude Code Monitor.
 // Called as: node hook-handler.js <EventType>
 // Reads JSON from stdin, POSTs to the monitor server.
 //
@@ -119,12 +119,23 @@ process.stdin.on("end", () => {
       ) {
         const decision = await pollDecision(response.approval_id);
         if (decision === "allow") {
-          process.stdout.write(JSON.stringify({ decision: "allow" }));
+          process.stdout.write(
+            JSON.stringify({
+              hookSpecificOutput: {
+                hookEventName: "PreToolUse",
+                permissionDecision: "allow",
+                permissionDecisionReason: "Approved from Claude Code Monitor dashboard",
+              },
+            })
+          );
         } else if (decision === "deny") {
           process.stdout.write(
             JSON.stringify({
-              decision: "deny",
-              reason: "Denied from Claude Monitor dashboard",
+              hookSpecificOutput: {
+                hookEventName: "PreToolUse",
+                permissionDecision: "deny",
+                permissionDecisionReason: "Denied from Claude Code Monitor dashboard",
+              },
             })
           );
         }

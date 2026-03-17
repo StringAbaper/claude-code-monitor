@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Installs (or removes) Claude Monitor hooks in ~/.claude/settings.json
+// Installs (or removes) Claude Code Monitor hooks in ~/.claude/settings.json
 // Usage:
 //   node install-hooks.js          # install hooks
 //   node install-hooks.js --remove # remove hooks
@@ -52,7 +52,7 @@ if (REMOVE) {
   if (Object.keys(settings.hooks).length === 0) {
     delete settings.hooks;
   }
-  console.log("Claude Monitor hooks removed.");
+  console.log("Claude Code Monitor hooks removed.");
 } else {
   // Install our hooks
   for (const event of HOOK_EVENTS) {
@@ -84,7 +84,7 @@ if (REMOVE) {
       _source: MARKER,
     });
   }
-  console.log("Claude Monitor hooks installed.");
+  console.log("Claude Code Monitor hooks installed.");
 }
 
 // Write settings

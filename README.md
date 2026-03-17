@@ -1,4 +1,4 @@
-# Claude Monitor
+# Claude Code Monitor
 
 Real-time dashboard for monitoring all active [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions across multiple VS Code windows and terminals.
 
@@ -40,8 +40,8 @@ Safe/read-only tools (Read, Glob, Grep, TodoWrite, etc.) bypass interception ent
 
 ```bash
 # Clone the repo
-git clone https://github.com/pinkforest/claude-monitor.git
-cd claude-monitor
+git clone https://github.com/bruceyxli/claude-code-monitor.git
+cd claude-code-monitor
 
 # Install dependencies
 npm install

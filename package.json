@@ -1,5 +1,5 @@
 {
-  "name": "claude-monitor",
+  "name": "claude-code-monitor",
   "version": "1.0.0",
   "description": "Real-time monitor for Claude Code sessions on Windows",
   "main": "server.js",

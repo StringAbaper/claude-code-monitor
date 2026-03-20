@@ -179,6 +179,22 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .ev.ev-pending{border-left:2px solid var(--amber);padding-left:22px}
 .ev.ev-complete{border-left:2px solid var(--purple);padding-left:22px}
 
+/* ── Login Screen ── */
+.login-screen{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;width:340px;max-width:90vw}
+.login-box h1{font-size:20px;font-weight:700;margin-bottom:4px}
+.login-box h1 span{color:var(--purple)}
+.login-box p{font-size:13px;color:var(--text-muted);margin-bottom:20px}
+.login-box input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;outline:none;margin-bottom:12px}
+.login-box input:focus{border-color:var(--purple)}
+.login-box button{width:100%;padding:10px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.login-box button:hover{filter:brightness(1.1)}
+.login-box button:disabled{opacity:0.5;cursor:default}
+.login-error{color:var(--red);font-size:12px;margin-bottom:8px}
+.login-hint{font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center}
+.btn-logout{background:none;border:1px solid var(--border);color:var(--text-dim);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.btn-logout:hover{color:var(--red);border-color:rgba(239,68,68,0.3)}
+
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -291,6 +307,35 @@ function playAlert(){try{const c=ensureAudio(),n=c.currentTime,o=c.createOscilla
 // Complete: pleasant ascending chime for task done
 function playComplete(){try{const c=ensureAudio(),n=c.currentTime;[523.25,659.25,783.99].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.connect(g);g.connect(c.destination);o.frequency.setValueAtTime(f,n+i*.12);g.gain.setValueAtTime(.18,n+i*.12);g.gain.exponentialRampToValueAtTime(.01,n+i*.12+.35);o.start(n+i*.12);o.stop(n+i*.12+.35)})}catch{}}
 function notify(t,b){try{if(Notification.permission==='granted')new Notification(t,{body:b,tag:'cm-'+Date.now()})}catch{}}
+
+// ── Login Screen ──
+function LoginScreen({onLogin}){
+  const[pw,setPw]=useState('');
+  const[err,setErr]=useState('');
+  const[loading,setLoading]=useState(false);
+  const handleSubmit=async(e)=>{
+    e.preventDefault();setErr('');setLoading(true);
+    try{
+      const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+      const data=await res.json();
+      if(res.ok&&data.token){localStorage.setItem('cm-token',data.token);onLogin(data.token)}
+      else setErr(data.error||'Login failed');
+    }catch{setErr('Cannot connect to server')}
+    setLoading(false);
+  };
+  return html`
+    <div className="login-screen">
+      <form className="login-box" onSubmit=${handleSubmit}>
+        <h1><span>Claude Code</span> Monitor</h1>
+        <p>Enter your dashboard password to continue.</p>
+        ${err&&html`<div className="login-error">${err}</div>`}
+        <input type="password" placeholder="Password" value=${pw} onInput=${e=>setPw(e.target.value)} autoFocus/>
+        <button type="submit" disabled=${loading}>${loading?'Signing in...':'Sign In'}</button>
+        <div className="login-hint">First time? Enter a new password to set it up.</div>
+      </form>
+    </div>
+  `;
+}
 
 // ── Sidebar Item ──
 function SidebarItem({s, selected, approvalCount, onClick}){
@@ -422,6 +467,28 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
 
 // ── App ──
 function App(){
+  const[authToken,setAuthToken]=useState(()=>localStorage.getItem('cm-token')||null);
+  const[authChecked,setAuthChecked]=useState(false);
+
+  // Verify stored token on load
+  useEffect(()=>{
+    if(!authToken){setAuthChecked(true);return}
+    fetch('/api/auth/check',{headers:{'Authorization':'Bearer '+authToken}})
+      .then(r=>{if(!r.ok){localStorage.removeItem('cm-token');setAuthToken(null)}setAuthChecked(true)})
+      .catch(()=>setAuthChecked(true));
+  },[]);
+
+  const logout=useCallback(()=>{localStorage.removeItem('cm-token');setAuthToken(null)},[]);
+
+  // Theme (works even on login screen)
+  const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
+  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('cm-theme',theme)},[theme]);
+  const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
+
+  if(!authChecked)return html`<div className="login-screen"><div style=${{color:'var(--text-muted)'}}>Loading...</div></div>`;
+  if(!authToken)return html`<${LoginScreen} onLogin=${t=>setAuthToken(t)}/>`;
+
+  // ── Authenticated state ──
   const[sessions,setSessions]=useState([]);
   const[pending,setPending]=useState([]);
   const[remoteApproval,setRemoteApproval]=useState(true);
@@ -431,13 +498,9 @@ function App(){
   const[selectedId,setSelectedId]=useState(null);
   const[tick,setTick]=useState(0);
   const[mobileDetail,setMobileDetail]=useState(false);
-  const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
   const[mNames,setMNames]=useState({});
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
-
-  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('cm-theme',theme)},[theme]);
-  const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
 
   useEffect(()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()},[]);
   useEffect(()=>{const t=setInterval(()=>setTick(k=>k+1),5e3);return()=>clearInterval(t)},[]);
@@ -458,9 +521,9 @@ function App(){
   // WebSocket
   const connect=useCallback(()=>{
     if(wsRef.current&&wsRef.current.readyState<=1)return;
-    const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws');
+    const ws=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/ws?token='+encodeURIComponent(authToken));
     ws.onopen=()=>{setConnected(true);if(reconnRef.current){clearTimeout(reconnRef.current);reconnRef.current=null}};
-    ws.onclose=()=>{setConnected(false);wsRef.current=null;reconnRef.current=setTimeout(connect,3e3)};
+    ws.onclose=(e)=>{setConnected(false);wsRef.current=null;if(e.code===4001){logout();return}reconnRef.current=setTimeout(connect,3e3)};
     ws.onerror=()=>ws.close();
     ws.onmessage=e=>{try{
       const d=JSON.parse(e.data);
@@ -487,13 +550,14 @@ function App(){
 
   useEffect(()=>{connect();return()=>{if(wsRef.current)wsRef.current.close();if(reconnRef.current)clearTimeout(reconnRef.current)}},[connect]);
 
-  const focusSession=useCallback(id=>{fetch('/api/sessions/'+id+'/focus',{method:'POST'}).catch(()=>{})},[]);
-  const removeSession=useCallback(id=>{fetch('/api/sessions/'+id,{method:'DELETE'}).catch(()=>{});if(selectedId===id){setSelectedId(null);setMobileDetail(false)}},[selectedId]);
-  const clearStopped=useCallback(()=>{fetch('/api/clear-stopped',{method:'POST'}).catch(()=>{})},[]);
-  const toggleRA=useCallback(()=>{const v=!remoteApproval;setRemoteApproval(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remoteApprovalEnabled:v})}).catch(()=>{})},[remoteApproval]);
-  const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove]);
-  const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:dec})}).catch(()=>{})},[]);
-  const renameMachine=useCallback((hostname,name)=>{fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}).catch(()=>{})},[]);
+  const authH={'Authorization':'Bearer '+authToken,'Content-Type':'application/json'};
+  const focusSession=useCallback(id=>{fetch('/api/sessions/'+id+'/focus',{method:'POST',headers:authH}).catch(()=>{})},[authToken]);
+  const removeSession=useCallback(id=>{fetch('/api/sessions/'+id,{method:'DELETE',headers:authH}).catch(()=>{});if(selectedId===id){setSelectedId(null);setMobileDetail(false)}},[selectedId,authToken]);
+  const clearStopped=useCallback(()=>{fetch('/api/clear-stopped',{method:'POST',headers:authH}).catch(()=>{})},[authToken]);
+  const toggleRA=useCallback(()=>{const v=!remoteApproval;setRemoteApproval(v);fetch('/api/settings',{method:'POST',headers:authH,body:JSON.stringify({remoteApprovalEnabled:v})}).catch(()=>{})},[remoteApproval,authToken]);
+  const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:authH,body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove,authToken]);
+  const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:authH,body:JSON.stringify({decision:dec})}).catch(()=>{})},[authToken]);
+  const renameMachine=useCallback((hostname,name)=>{fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:authH,body:JSON.stringify({name})}).catch(()=>{})},[authToken]);
 
   const selected=sessions.find(s=>s.id===selectedId)||null;
   const globalPending=pending.filter(a=>a.status==='pending');
@@ -516,6 +580,7 @@ function App(){
           <div className="logo"><span>Claude Code</span> Monitor</div>
           <div className="header-right">
             <button className="btn-theme" onClick=${toggleTheme} title=${theme==='dark'?'Light mode':'Dark mode'}>${theme==='dark'?'\u2600':'🌙'}</button>
+            <button className="btn-logout" onClick=${logout} title="Logout">⏻</button>
             <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
           </div>
         </div>

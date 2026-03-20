@@ -10,6 +10,7 @@
 // MUST never block or crash — always exits 0.
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -20,8 +21,20 @@ const parsed = new URL(MONITOR_URL);
 const HOST = parsed.hostname;
 const PORT = parseInt(parsed.port) || 7888;
 const USE_HTTPS = parsed.protocol === "https:";
+const httpModule = USE_HTTPS ? https : http;
 const POLL_INTERVAL = 400;
 const MAX_POLL_MS = 120_000; // 2 minutes
+
+// Resolve API token: env var > .monitor-token file
+function resolveToken() {
+  if (process.env.CLAUDE_MONITOR_TOKEN) return process.env.CLAUDE_MONITOR_TOKEN;
+  try {
+    const tokenFile = path.join(__dirname, ".monitor-token");
+    if (fs.existsSync(tokenFile)) return fs.readFileSync(tokenFile, "utf8").trim();
+  } catch {}
+  return "";
+}
+const API_TOKEN = resolveToken();
 
 // Safety timeout: 3min for PreToolUse (remote approval), 5s for others
 setTimeout(() => process.exit(0), EVENT_TYPE === "PreToolUse" ? 180_000 : 5_000);
@@ -31,7 +44,7 @@ setTimeout(() => process.exit(0), EVENT_TYPE === "PreToolUse" ? 180_000 : 5_000)
 function httpPost(urlPath, body) {
   return new Promise((resolve) => {
     const payload = JSON.stringify(body);
-    const req = http.request(
+    const req = httpModule.request(
       {
         hostname: HOST,
         port: PORT,
@@ -40,7 +53,9 @@ function httpPost(urlPath, body) {
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload),
+          "Authorization": API_TOKEN ? `Bearer ${API_TOKEN}` : "",
         },
+        rejectUnauthorized: false,
         timeout: 3000,
       },
       (res) => {
@@ -67,8 +82,19 @@ function httpPost(urlPath, body) {
 
 function httpGet(urlPath) {
   return new Promise((resolve) => {
-    http
-      .get(`http://${HOST}:${PORT}${urlPath}`, { timeout: 3000 }, (res) => {
+    const req = httpModule.request(
+      {
+        hostname: HOST,
+        port: PORT,
+        path: urlPath,
+        method: "GET",
+        headers: {
+          "Authorization": API_TOKEN ? `Bearer ${API_TOKEN}` : "",
+        },
+        rejectUnauthorized: false,
+        timeout: 3000,
+      },
+      (res) => {
         let buf = "";
         res.on("data", (c) => (buf += c));
         res.on("end", () => {
@@ -78,12 +104,14 @@ function httpGet(urlPath) {
             resolve({});
           }
         });
-      })
-      .on("error", () => resolve({}))
-      .on("timeout", function () {
-        this.destroy();
-        resolve({});
-      });
+      }
+    );
+    req.on("error", () => resolve({}));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({});
+    });
+    req.end();
   });
 }
 

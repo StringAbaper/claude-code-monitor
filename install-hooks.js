@@ -10,7 +10,21 @@ const os = require("os");
 
 const REMOVE = process.argv.includes("--remove");
 const URL_ARG = process.argv.find(a => a.startsWith("--url="));
+const TOKEN_ARG = process.argv.find(a => a.startsWith("--token="));
 const MONITOR_URL = URL_ARG ? URL_ARG.split("=").slice(1).join("=") : null;
+let MONITOR_TOKEN = TOKEN_ARG ? TOKEN_ARG.split("=").slice(1).join("=") : null;
+
+// If no explicit token, try to read from local data/config.json
+if (!MONITOR_TOKEN) {
+  try {
+    const configPath = path.join(__dirname, "data", "config.json");
+    if (fs.existsSync(configPath)) {
+      const cfg = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      MONITOR_TOKEN = cfg.apiToken || null;
+    }
+  } catch {}
+}
+
 const SETTINGS_PATH = path.join(os.homedir(), ".claude", "settings.json");
 const HANDLER_PATH = path.join(__dirname, "hook-handler.js").replace(/\\/g, "/");
 const MARKER = "claude-monitor"; // used to identify our hooks
@@ -73,7 +87,10 @@ if (REMOVE) {
 
     // PreToolUse needs long timeout for remote approval polling
     const timeout = event === "PreToolUse" ? 300000 : 5000;
-    const envPrefix = MONITOR_URL ? `CLAUDE_MONITOR_URL=${MONITOR_URL} ` : "";
+    const envParts = [];
+    if (MONITOR_URL) envParts.push(`CLAUDE_MONITOR_URL=${MONITOR_URL}`);
+    if (MONITOR_TOKEN) envParts.push(`CLAUDE_MONITOR_TOKEN=${MONITOR_TOKEN}`);
+    const envPrefix = envParts.length > 0 ? envParts.join(" ") + " " : "";
     const command = `${envPrefix}node "${HANDLER_PATH}" ${event}`;
     settings.hooks[event].push({
       matcher: "",
@@ -103,9 +120,14 @@ try {
     console.log("\nEvents monitored:", HOOK_EVENTS.join(", "));
     if (MONITOR_URL) {
       console.log("\nMonitor server:", MONITOR_URL);
-      console.log("(hooks will send data to the remote monitor)");
     } else {
       console.log("\nMonitor server: http://127.0.0.1:7888 (local)");
+    }
+    if (MONITOR_TOKEN) {
+      console.log("API Token:      ", MONITOR_TOKEN.slice(0, 8) + "...");
+    } else {
+      console.log("WARNING: No API token configured. Server will reject requests.");
+      console.log("  Use: node install-hooks.js --token=<token>");
     }
     console.log("\nStart the monitor with: npm start");
   }

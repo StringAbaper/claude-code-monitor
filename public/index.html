@@ -469,6 +469,19 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
 function App(){
   const[authToken,setAuthToken]=useState(()=>localStorage.getItem('cm-token')||null);
   const[authChecked,setAuthChecked]=useState(false);
+  const[sessions,setSessions]=useState([]);
+  const[pending,setPending]=useState([]);
+  const[remoteApproval,setRemoteApproval]=useState(true);
+  const[autoApprove,setAutoApprove]=useState(false);
+  const[connected,setConnected]=useState(false);
+  const[sound,setSound]=useState(true);
+  const[selectedId,setSelectedId]=useState(null);
+  const[tick,setTick]=useState(0);
+  const[mobileDetail,setMobileDetail]=useState(false);
+  const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
+  const[mNames,setMNames]=useState({});
+  const wsRef=useRef(null);
+  const reconnRef=useRef(null);
 
   // Verify stored token on load
   useEffect(()=>{
@@ -480,27 +493,8 @@ function App(){
 
   const logout=useCallback(()=>{localStorage.removeItem('cm-token');setAuthToken(null)},[]);
 
-  // Theme (works even on login screen)
-  const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('cm-theme',theme)},[theme]);
   const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
-
-  if(!authChecked)return html`<div className="login-screen"><div style=${{color:'var(--text-muted)'}}>Loading...</div></div>`;
-  if(!authToken)return html`<${LoginScreen} onLogin=${t=>setAuthToken(t)}/>`;
-
-  // ── Authenticated state ──
-  const[sessions,setSessions]=useState([]);
-  const[pending,setPending]=useState([]);
-  const[remoteApproval,setRemoteApproval]=useState(true);
-  const[autoApprove,setAutoApprove]=useState(false);
-  const[connected,setConnected]=useState(false);
-  const[sound,setSound]=useState(true);
-  const[selectedId,setSelectedId]=useState(null);
-  const[tick,setTick]=useState(0);
-  const[mobileDetail,setMobileDetail]=useState(false);
-  const[mNames,setMNames]=useState({});
-  const wsRef=useRef(null);
-  const reconnRef=useRef(null);
 
   useEffect(()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()},[]);
   useEffect(()=>{const t=setInterval(()=>setTick(k=>k+1),5e3);return()=>clearInterval(t)},[]);
@@ -548,7 +542,10 @@ function App(){
     wsRef.current=ws;
   },[sound]);
 
-  useEffect(()=>{connect();return()=>{if(wsRef.current)wsRef.current.close();if(reconnRef.current)clearTimeout(reconnRef.current)}},[connect]);
+  useEffect(()=>{
+    if(!authToken)return;
+    connect();return()=>{if(wsRef.current)wsRef.current.close();if(reconnRef.current)clearTimeout(reconnRef.current)}
+  },[connect,authToken]);
 
   const authH={'Authorization':'Bearer '+authToken,'Content-Type':'application/json'};
   const focusSession=useCallback(id=>{fetch('/api/sessions/'+id+'/focus',{method:'POST',headers:authH}).catch(()=>{})},[authToken]);
@@ -558,6 +555,10 @@ function App(){
   const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:authH,body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove,authToken]);
   const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:authH,body:JSON.stringify({decision:dec})}).catch(()=>{})},[authToken]);
   const renameMachine=useCallback((hostname,name)=>{fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:authH,body:JSON.stringify({name})}).catch(()=>{})},[authToken]);
+
+  // Auth guards (after all hooks)
+  if(!authChecked)return html`<div className="login-screen"><div style=${{color:'var(--text-muted)'}}>Loading...</div></div>`;
+  if(!authToken)return html`<${LoginScreen} onLogin=${t=>setAuthToken(t)}/>`;
 
   const selected=sessions.find(s=>s.id===selectedId)||null;
   const globalPending=pending.filter(a=>a.status==='pending');

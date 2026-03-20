@@ -116,7 +116,7 @@ server.listen(PORT, "0.0.0.0", () => {
   const lanIP = getLanIP();
   const proto = USE_HTTPS ? "https" : "http";
   const token = store.getApiToken();
-  const hasPw = !!store.getDashboardPassword();
+  const hasPw = !!store.getDashboardPasswordHash();
   console.log("");
   console.log("  ╔══════════════════════════════════════════════╗");
   console.log("  ║         Claude Code Monitor v1.3.0           ║");

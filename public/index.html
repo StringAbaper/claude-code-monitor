@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Code Monitor</title>
 <style>
-:root {
+:root, [data-theme="dark"] {
   --bg: #0a0a0a;
   --surface: #111;
   --surface2: #161616;
@@ -27,6 +27,28 @@
   --purple: #8b5cf6;
   --purple-bg: rgba(139,92,246,0.07);
 }
+[data-theme="light"] {
+  --bg: #f5f5f5;
+  --surface: #fff;
+  --surface2: #f0f0f0;
+  --surface-hover: #eaeaea;
+  --border: #ddd;
+  --border-light: #ccc;
+  --text: #1a1a1a;
+  --text-muted: #666;
+  --text-dim: #999;
+  --green: #16a34a;
+  --green-bg: rgba(22,163,74,0.08);
+  --amber: #d97706;
+  --amber-bg: rgba(217,119,6,0.07);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,0.07);
+  --blue: #2563eb;
+  --blue-bg: rgba(37,99,235,0.07);
+  --gray: #9ca3af;
+  --purple: #7c3aed;
+  --purple-bg: rgba(124,58,237,0.07);
+}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;line-height:1.5}
 
@@ -37,7 +59,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .sidebar{width:300px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
 .sidebar-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .logo{font-size:16px;font-weight:700;letter-spacing:-0.5px}.logo span{color:var(--purple)}
-.header-right{display:flex;align-items:center;gap:10px}
+.header-right{display:flex;align-items:center;gap:8px}
+.btn-theme{background:none;border:1px solid var(--border);color:var(--text-muted);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.btn-theme:hover{color:var(--text);border-color:var(--border-light)}
 .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--gray)}
 .conn-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
 
@@ -90,7 +114,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .ab-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .ab-tool{font-weight:600;color:var(--amber);font-size:13px}
 .ab-project{font-size:11px;color:var(--text-muted)}
-.ab-desc{font-family:'Cascadia Code','Consolas',monospace;font-size:12px;color:var(--text);padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:10px;word-break:break-all;line-height:1.5;max-height:80px;overflow-y:auto}
+.ab-desc{font-family:'Cascadia Code','Consolas',monospace;font-size:12px;color:var(--text);padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:10px;word-break:break-all;line-height:1.5;max-height:80px;overflow-y:auto}
 .ab-actions{display:flex;justify-content:space-between;align-items:center}
 .ab-btns{display:flex;gap:8px}
 .btn-allow{background:var(--green);color:#000;border:none;padding:6px 22px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s}
@@ -115,6 +139,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .detail-info{padding:16px 24px;display:grid;grid-template-columns:100px 1fr;gap:6px 16px;font-size:13px;border-bottom:1px solid var(--border)}
 .detail-info dt{color:var(--text-muted)}
 .detail-info dd{color:var(--text);font-family:'Cascadia Code','Consolas',monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.usage-row{display:flex;gap:10px;flex-wrap:wrap}
+.usage-in{color:var(--blue)}
+.usage-out{color:var(--green)}
+.usage-cache{color:var(--text-dim)}
 
 .detail-activity{padding:16px 24px;border-bottom:1px solid var(--border)}
 .detail-activity-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
@@ -230,6 +258,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </head>
 <body>
 <div id="root"></div>
+<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('cm-theme')||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'))</script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
@@ -243,6 +272,8 @@ function clockTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit'
 function duration(ms){const m=ms/6e4|0;if(m<60)return m+'m';return(m/60|0)+'h '+(m%60)+'m'}
 
 const STATUS={working:'Working',waiting_permission:'Permission',idle:'Idle',stopped:'Stopped',unknown:'Unknown'};
+function fmtTokens(n){if(!n)return'0';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(n)}
+function totalTokens(u){return(u?.input_tokens||0)+(u?.output_tokens||0)+(u?.cache_read_input_tokens||0)+(u?.cache_creation_input_tokens||0)}
 
 let audioCtx;
 function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
@@ -267,6 +298,7 @@ function SidebarItem({s, selected, approvalCount, onClick}){
       <div className="si-meta">
         <span>${timeAgo(s.lastActivity)}</span>
         <span>${s.eventCount} events</span>
+        ${totalTokens(s.usage)>0&&html`<span>${fmtTokens(totalTokens(s.usage))} tok</span>`}
         ${approvalCount>0&&html`<span className="approval-badge">${approvalCount}</span>`}
       </div>
     </div>
@@ -326,6 +358,15 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack}){
         <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
         <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
         <dt>Events</dt><dd>${s.eventCount}</dd>
+        ${totalTokens(s.usage)>0&&html`
+          <dt>Tokens</dt>
+          <dd className="usage-row">
+            <span className="usage-in" title="Input tokens">${fmtTokens(s.usage.input_tokens)} in</span>
+            <span className="usage-out" title="Output tokens">${fmtTokens(s.usage.output_tokens)} out</span>
+            ${s.usage.cache_read_input_tokens>0&&html`<span className="usage-cache" title="Cache read">${fmtTokens(s.usage.cache_read_input_tokens)} cached</span>`}
+            ${s.usage.cache_creation_input_tokens>0&&html`<span className="usage-cache" title="Cache creation">${fmtTokens(s.usage.cache_creation_input_tokens)} cache-write</span>`}
+          </dd>
+        `}
       </dl>
 
       <div className="detail-activity">
@@ -380,8 +421,12 @@ function App(){
   const[selectedId,setSelectedId]=useState(null);
   const[tick,setTick]=useState(0);
   const[mobileDetail,setMobileDetail]=useState(false);
+  const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
+
+  useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('cm-theme',theme)},[theme]);
+  const toggleTheme=useCallback(()=>setTheme(t=>t==='dark'?'light':'dark'),[]);
 
   useEffect(()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()},[]);
   useEffect(()=>{const t=setInterval(()=>setTick(k=>k+1),5e3);return()=>clearInterval(t)},[]);
@@ -451,6 +496,7 @@ function App(){
         <div className="sidebar-header">
           <div className="logo"><span>Claude Code</span> Monitor</div>
           <div className="header-right">
+            <button className="btn-theme" onClick=${toggleTheme} title=${theme==='dark'?'Light mode':'Dark mode'}>${theme==='dark'?'\u2600':'🌙'}</button>
             <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
           </div>
         </div>

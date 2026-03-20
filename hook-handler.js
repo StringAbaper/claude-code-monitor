@@ -10,9 +10,16 @@
 // MUST never block or crash — always exits 0.
 
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 const EVENT_TYPE = process.argv[2] || "Unknown";
-const PORT = 7888;
+const MONITOR_URL = process.env.CLAUDE_MONITOR_URL || "http://127.0.0.1:7888";
+const parsed = new URL(MONITOR_URL);
+const HOST = parsed.hostname;
+const PORT = parseInt(parsed.port) || 7888;
+const USE_HTTPS = parsed.protocol === "https:";
 const POLL_INTERVAL = 400;
 const MAX_POLL_MS = 120_000; // 2 minutes
 
@@ -21,14 +28,14 @@ setTimeout(() => process.exit(0), EVENT_TYPE === "PreToolUse" ? 180_000 : 5_000)
 
 // ── HTTP helpers (promise-based) ────────────
 
-function httpPost(path, body) {
+function httpPost(urlPath, body) {
   return new Promise((resolve) => {
     const payload = JSON.stringify(body);
     const req = http.request(
       {
-        hostname: "127.0.0.1",
+        hostname: HOST,
         port: PORT,
-        path,
+        path: urlPath,
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -58,10 +65,10 @@ function httpPost(path, body) {
   });
 }
 
-function httpGet(path) {
+function httpGet(urlPath) {
   return new Promise((resolve) => {
     http
-      .get(`http://127.0.0.1:${PORT}${path}`, { timeout: 3000 }, (res) => {
+      .get(`http://${HOST}:${PORT}${urlPath}`, { timeout: 3000 }, (res) => {
         let buf = "";
         res.on("data", (c) => (buf += c));
         res.on("end", () => {
@@ -96,6 +103,57 @@ function pollDecision(approvalId) {
   });
 }
 
+// ── Transcript usage parser ─────────────────
+
+function parseTranscriptUsage(sessionId, cwd) {
+  try {
+    // Derive project hash: d:\claude monitor → d--claude-monitor
+    const hash = cwd
+      .replace(/:\\/g, "--")   // :\ → --
+      .replace(/:/g, "--")     // : → -- (unix)
+      .replace(/\//g, "-")     // / → -
+      .replace(/\\/g, "-")     // \ → -
+      .replace(/ /g, "-");     // space → -
+
+    const projectDir = path.join(os.homedir(), ".claude", "projects", hash);
+    const transcriptPath = path.join(projectDir, `${sessionId}.jsonl`);
+
+    if (!fs.existsSync(transcriptPath)) return null;
+
+    const lines = fs.readFileSync(transcriptPath, "utf8").split("\n").filter(Boolean);
+
+    // Collect usage from assistant messages, deduplicate by message id
+    const seen = new Map(); // id → usage (keep last/largest output_tokens)
+    for (const line of lines) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry.type !== "assistant" && entry.message?.role !== "assistant") continue;
+        const msg = entry.message;
+        if (!msg || !msg.usage) continue;
+        const id = msg.id || entry.uuid;
+        if (!id) continue;
+        const prev = seen.get(id);
+        if (!prev || msg.usage.output_tokens > prev.output_tokens) {
+          seen.set(id, msg.usage);
+        }
+      } catch {}
+    }
+
+    // Sum all usage
+    const totals = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+    for (const u of seen.values()) {
+      totals.input_tokens += u.input_tokens || 0;
+      totals.output_tokens += u.output_tokens || 0;
+      totals.cache_creation_input_tokens += u.cache_creation_input_tokens || 0;
+      totals.cache_read_input_tokens += u.cache_read_input_tokens || 0;
+    }
+
+    return totals;
+  } catch {
+    return null;
+  }
+}
+
 // ── Main ────────────────────────────────────
 
 let input = "";
@@ -108,6 +166,12 @@ process.stdin.on("end", () => {
       const data = JSON.parse(input);
       data.event_type = EVENT_TYPE;
       data.timestamp = Date.now();
+
+      // On Stop events, parse transcript for token usage
+      if (EVENT_TYPE === "Stop" && data.session_id && data.cwd) {
+        const usage = parseTranscriptUsage(data.session_id, data.cwd);
+        if (usage) data.usage = usage;
+      }
 
       const response = await httpPost("/api/event", data);
 

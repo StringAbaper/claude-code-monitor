@@ -9,6 +9,8 @@ const path = require("path");
 const os = require("os");
 
 const REMOVE = process.argv.includes("--remove");
+const URL_ARG = process.argv.find(a => a.startsWith("--url="));
+const MONITOR_URL = URL_ARG ? URL_ARG.split("=").slice(1).join("=") : null;
 const SETTINGS_PATH = path.join(os.homedir(), ".claude", "settings.json");
 const HANDLER_PATH = path.join(__dirname, "hook-handler.js").replace(/\\/g, "/");
 const MARKER = "claude-monitor"; // used to identify our hooks
@@ -71,7 +73,8 @@ if (REMOVE) {
 
     // PreToolUse needs long timeout for remote approval polling
     const timeout = event === "PreToolUse" ? 300000 : 5000;
-    const command = `node "${HANDLER_PATH}" ${event}`;
+    const envPrefix = MONITOR_URL ? `CLAUDE_MONITOR_URL=${MONITOR_URL} ` : "";
+    const command = `${envPrefix}node "${HANDLER_PATH}" ${event}`;
     settings.hooks[event].push({
       matcher: "",
       hooks: [
@@ -98,6 +101,12 @@ try {
   );
   if (!REMOVE) {
     console.log("\nEvents monitored:", HOOK_EVENTS.join(", "));
+    if (MONITOR_URL) {
+      console.log("\nMonitor server:", MONITOR_URL);
+      console.log("(hooks will send data to the remote monitor)");
+    } else {
+      console.log("\nMonitor server: http://127.0.0.1:7888 (local)");
+    }
     console.log("\nStart the monitor with: npm start");
   }
 } catch (err) {

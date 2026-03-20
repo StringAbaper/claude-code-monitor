@@ -10,9 +10,14 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 - **Remote approval** — Approve or deny tool permission requests directly from the dashboard without switching windows
 - **Auto-approve** — Optionally auto-approve all permission requests (with safety confirmation)
 - **Window focus** — Jump to the session's IDE or terminal window from the dashboard (cross-platform)
+- **Token usage** — Track input/output/cache token usage per session
+- **Light/Dark mode** — Toggle theme with OS preference auto-detection
+- **LAN support** — Monitor Claude Code sessions from other machines on the same network
 - **Real-time updates** — WebSocket-powered live state with session status, current tool, event log
-- **Browser notifications** — Audio alert + desktop notification when a permission prompt appears
+- **Audio alerts** — Different sounds for permission requests (urgent) and task completion (chime)
+- **Browser notifications** — Desktop notification when permission prompt or task completion occurs
 - **Session persistence** — Sessions survive server restarts
+- **Mobile responsive** — Dashboard works on phones and tablets
 
 ## Supported Platforms
 
@@ -93,14 +98,65 @@ Now use Claude Code normally in any VS Code window or terminal — sessions will
 | `npm start` | Start the monitor server on port 7888 |
 | `npm run install-hooks` | Install hooks into `~/.claude/settings.json` |
 | `npm run uninstall-hooks` | Remove hooks from `~/.claude/settings.json` |
+| `npm run deploy` | Generate deployment packages for server + client |
 
 ### Dashboard Controls
 
 - **Remote Approval** toggle — Enable/disable remote tool approval interception (default: ON)
 - **Auto-Approve** toggle — Auto-allow all permission requests (shows "Allow Dangerous Permission" warning)
 - **Sound** toggle — Enable/disable audio alerts for new approvals
+- **Light/Dark mode** — Toggle theme (sun/moon button in header)
 - **Focus Window** — Bring the session's IDE/terminal window to the foreground
 - **Clear** — Remove stopped sessions from the list
+
+## LAN / Multi-Machine Setup
+
+Monitor Claude Code sessions running on other computers on the same network.
+
+### Quick Setup
+
+The server listens on `0.0.0.0` and shows your LAN IP at startup:
+
+```
+  ║  Local:   http://localhost:7888        ║
+  ║  LAN:     http://192.168.1.100:7888    ║
+  Remote machines: node install-hooks.js --url=http://192.168.1.100:7888
+```
+
+### Option A: Git Pull (recommended)
+
+On the remote machine:
+```bash
+git clone https://github.com/bruceyxli/claude-code-monitor.git
+cd claude-code-monitor
+npm install
+node install-hooks.js --url=http://<server-ip>:7888
+```
+
+### Option B: Deploy Packages
+
+```bash
+# On the server machine, generate packages
+npm run deploy
+
+# Copy deploy/client/ to each remote machine, then:
+./setup.sh http://<server-ip>:7888     # macOS/Linux
+setup.bat http://<server-ip>:7888      # Windows
+```
+
+### How it works
+
+- **hook-handler.js** on each machine reads `CLAUDE_MONITOR_URL` env var to know where to send events
+- `install-hooks.js --url=<url>` bakes the URL into the hook commands in `~/.claude/settings.json`
+- Token usage still works — hook-handler reads transcript files locally before sending to server
+- Window focus only works on the machine running the server (can't focus remote windows)
+
+### Firewall
+
+Make sure port 7888 is open on the server machine:
+- **Windows**: `netsh advfirewall firewall add rule name="Claude Monitor" dir=in action=allow protocol=TCP localport=7888`
+- **macOS**: No action needed (no firewall by default)
+- **Linux**: `sudo ufw allow 7888/tcp`
 
 ## Architecture
 
@@ -109,14 +165,14 @@ Now use Claude Code normally in any VS Code window or terminal — sessions will
         │
         ▼
 hook-handler.js             Called on each hook event, POSTs to server
-        │
+        │                   (supports CLAUDE_MONITOR_URL for remote)
         ▼
-server.js                   Express + WebSocket server (port 7888)
-  ├─ /api/event             Receives hook events, manages approvals
-  ├─ /api/pending/:id       Approval polling endpoint
-  ├─ /api/settings          Toggle remote approval / auto-approve
-  ├─ /api/sessions/:id/focus  Cross-platform window focus
-  └─ /ws                    WebSocket for real-time dashboard updates
+server.js                   Express + WebSocket entry point (port 7888)
+  ├─ lib/store.js           Session & approval state, persistence
+  ├─ lib/tools.js           Tool summarization, event processing
+  ├─ lib/routes.js          All API routes
+  ├─ lib/focus.js           Cross-platform window focus
+  └─ /ws                    WebSocket for real-time updates
         │
         ▼
 public/index.html           React dashboard (CDN, no build step)
@@ -126,10 +182,15 @@ public/index.html           React dashboard (CDN, no build step)
 
 | File | Purpose |
 |------|---------|
-| `server.js` | Express + WebSocket server, session management, approval lifecycle |
+| `server.js` | Express + WebSocket entry point |
+| `lib/store.js` | Session/approval state management and persistence |
+| `lib/tools.js` | Tool summarization and event processing |
+| `lib/routes.js` | All API routes (events, approvals, settings, focus) |
+| `lib/focus.js` | Cross-platform window focus (Win32/macOS/Linux) |
 | `hook-handler.js` | Bridge between Claude Code hooks and the monitor server |
 | `install-hooks.js` | Installs/removes hooks in `~/.claude/settings.json` |
-| `public/index.html` | Single-file React dashboard (uses htm for JSX-like syntax, no build step) |
+| `deploy.js` | Generates server + client deployment packages |
+| `public/index.html` | Single-file React dashboard (uses htm for JSX-like syntax) |
 | `data/sessions.json` | Persisted session state (auto-generated) |
 | `data/config.json` | Settings persistence (auto-generated) |
 
@@ -138,12 +199,13 @@ public/index.html           React dashboard (CDN, no build step)
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `PORT` | `7888` | Server port |
+| `CLAUDE_MONITOR_URL` | `http://127.0.0.1:7888` | Monitor server URL (used by hook-handler on remote machines) |
 
 ### Safe Tools (bypass remote approval)
 
 Read, Glob, Grep, TodoWrite, TaskOutput, Skill, ToolSearch
 
-These read-only tools are never intercepted, even when remote approval is enabled. Edit the `SAFE_TOOLS` set in `server.js` to customize.
+These read-only tools are never intercepted, even when remote approval is enabled. Edit the `SAFE_TOOLS` set in `lib/tools.js` to customize.
 
 ## Requirements
 

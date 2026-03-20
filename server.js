@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const { WebSocketServer } = require("ws");
 const path = require("path");
+const os = require("os");
 
 const store = require("./lib/store");
 const routes = require("./lib/routes");
@@ -51,14 +52,28 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-server.listen(PORT, () => {
+function getLanIP() {
+  const nets = os.networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    for (const cfg of iface) {
+      if (cfg.family === "IPv4" && !cfg.internal) return cfg.address;
+    }
+  }
+  return "unknown";
+}
+
+server.listen(PORT, "0.0.0.0", () => {
+  const lanIP = getLanIP();
   console.log("");
-  console.log("  ╔══════════════════════════════════════╗");
-  console.log("  ║       Claude Code Monitor v1.1.0     ║");
-  console.log(`  ║  http://localhost:${PORT}            ║`);
-  console.log("  ╚══════════════════════════════════════╝");
+  console.log("  ╔══════════════════════════════════════════╗");
+  console.log("  ║         Claude Code Monitor v1.2.0       ║");
+  console.log(`  ║  Local:   http://localhost:${PORT}              ║`);
+  console.log(`  ║  LAN:     http://${lanIP}:${PORT}        ║`);
+  console.log("  ╚══════════════════════════════════════════════╝");
   const cfg = store.getConfig();
   console.log(`  Remote approval: ${cfg.remoteApprovalEnabled ? "ON" : "OFF"}`);
   console.log(`  Auto-approve:    ${cfg.autoApproveEnabled ? "ON (DANGEROUS)" : "OFF"}`);
+  console.log("");
+  console.log(`  Remote machines: node install-hooks.js --url=http://${lanIP}:${PORT}`);
   console.log("");
 });

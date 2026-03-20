@@ -87,7 +87,9 @@ npm run install-hooks
 npm start
 ```
 
-Open **http://localhost:7888** in your browser. The dashboard will auto-connect via WebSocket.
+Open **http://localhost:7888** in your browser. On first visit, you'll be prompted to set a dashboard password. After login, the dashboard will auto-connect via WebSocket.
+
+The server startup output shows your **API Token** — you'll need this for remote machines.
 
 Now use Claude Code normally in any VS Code window or terminal — sessions will appear in the dashboard automatically.
 
@@ -120,7 +122,8 @@ The server listens on `0.0.0.0` and shows your LAN IP at startup:
 ```
   ║  Local:   http://localhost:7888        ║
   ║  LAN:     http://192.168.1.100:7888    ║
-  Remote machines: node install-hooks.js --url=http://192.168.1.100:7888
+  API Token:       xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  Remote machines: node install-hooks.js --url=http://192.168.1.100:7888 --token=<token>
 ```
 
 ### Option A: Git Pull (recommended)
@@ -130,7 +133,7 @@ On the remote machine:
 git clone https://github.com/bruceyxli/claude-code-monitor.git
 cd claude-code-monitor
 npm install
-node install-hooks.js --url=http://<server-ip>:7888
+node install-hooks.js --url=http://<server-ip>:7888 --token=<api-token>
 ```
 
 ### Option B: Deploy Packages
@@ -146,8 +149,8 @@ setup.bat http://<server-ip>:7888      # Windows
 
 ### How it works
 
-- **hook-handler.js** on each machine reads `CLAUDE_MONITOR_URL` env var to know where to send events
-- `install-hooks.js --url=<url>` bakes the URL into the hook commands in `~/.claude/settings.json`
+- **hook-handler.js** on each machine reads `CLAUDE_MONITOR_URL` and `CLAUDE_MONITOR_TOKEN` env vars
+- `install-hooks.js --url=<url> --token=<token>` bakes both into the hook commands in `~/.claude/settings.json`
 - Token usage still works — hook-handler reads transcript files locally before sending to server
 - Window focus only works on the machine running the server (can't focus remote windows)
 
@@ -157,6 +160,41 @@ Make sure port 7888 is open on the server machine:
 - **Windows**: `netsh advfirewall firewall add rule name="Claude Monitor" dir=in action=allow protocol=TCP localport=7888`
 - **macOS**: No action needed (no firewall by default)
 - **Linux**: `sudo ufw allow 7888/tcp`
+
+## Security
+
+### Authentication
+
+All API endpoints and WebSocket connections require a valid API token. The dashboard requires a password to log in.
+
+- **API Token** — Auto-generated UUID on first server start, stored in `data/config.json`
+- **Dashboard Password** — Set on first browser visit, stored as SHA-256 hash (never plaintext)
+- **hook-handler** — Reads token from `CLAUDE_MONITOR_TOKEN` env var (baked in by `install-hooks.js`)
+- **WebSocket** — Token passed as query parameter on connection
+
+### HTTPS
+
+Optional self-signed TLS support:
+
+```bash
+# Start with HTTPS
+node server.js --https
+
+# Or via environment variable
+HTTPS=true node server.js
+```
+
+Auto-generates `data/cert.pem` and `data/key.pem` on first run (requires `openssl` in PATH). You can also provide your own certificates by placing them in `data/`.
+
+### Sensitive Files
+
+All secrets are stored in `data/` which is gitignored:
+
+| File | Contents |
+|------|----------|
+| `data/config.json` | API token, password hash, settings |
+| `data/cert.pem` | TLS certificate (if HTTPS enabled) |
+| `data/key.pem` | TLS private key (if HTTPS enabled) |
 
 ## Architecture
 
@@ -185,7 +223,8 @@ public/index.html           React dashboard (CDN, no build step)
 | `server.js` | Express + WebSocket entry point |
 | `lib/store.js` | Session/approval state management and persistence |
 | `lib/tools.js` | Tool summarization and event processing |
-| `lib/routes.js` | All API routes (events, approvals, settings, focus) |
+| `lib/routes.js` | All API routes (events, approvals, settings, login, focus) |
+| `lib/auth.js` | Token authentication middleware |
 | `lib/focus.js` | Cross-platform window focus (Win32/macOS/Linux) |
 | `hook-handler.js` | Bridge between Claude Code hooks and the monitor server |
 | `install-hooks.js` | Installs/removes hooks in `~/.claude/settings.json` |
@@ -199,7 +238,9 @@ public/index.html           React dashboard (CDN, no build step)
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `PORT` | `7888` | Server port |
+| `HTTPS` | `false` | Set to `true` to enable HTTPS (or use `--https` flag) |
 | `CLAUDE_MONITOR_URL` | `http://127.0.0.1:7888` | Monitor server URL (used by hook-handler on remote machines) |
+| `CLAUDE_MONITOR_TOKEN` | — | API token for hook-handler authentication |
 
 ### Safe Tools (bypass remote approval)
 

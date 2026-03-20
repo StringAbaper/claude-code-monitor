@@ -248,6 +248,16 @@ Read, Glob, Grep, TodoWrite, TaskOutput, Skill, ToolSearch
 
 These read-only tools are never intercepted, even when remote approval is enabled. Edit the `SAFE_TOOLS` set in `lib/tools.js` to customize.
 
+## Troubleshooting
+
+### Cannot login in Incognito / InPrivate mode
+
+Edge/Chrome incognito mode enables Tracking Prevention, which blocks `localStorage` access on `localhost`. The login request succeeds (200 OK) but the API token cannot be stored, causing the page to loop back to the login screen.
+
+**Solutions:**
+- Use a normal (non-incognito) browser window
+- In incognito, click the shield/lock icon in the address bar and disable Tracking Prevention for this site
+
 ## Requirements
 
 - Node.js 18+

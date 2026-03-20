@@ -166,6 +166,7 @@ process.stdin.on("end", () => {
       const data = JSON.parse(input);
       data.event_type = EVENT_TYPE;
       data.timestamp = Date.now();
+      data.hostname = os.hostname();
 
       // On Stop events, parse transcript for token usage
       if (EVENT_TYPE === "Stop" && data.session_id && data.cwd) {

@@ -77,6 +77,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .sidebar-list{flex:1;overflow-y:auto}
 .sidebar-empty{padding:40px 16px;text-align:center;color:var(--text-dim);font-size:13px}
 
+/* Machine Group */
+.machine-group{border-bottom:1px solid var(--border)}
+.machine-header{padding:8px 14px 4px;display:flex;align-items:center;gap:6px;background:var(--surface2)}
+.machine-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);cursor:pointer;border:none;background:none;padding:1px 4px;border-radius:3px;font-family:inherit}
+.machine-name:hover{color:var(--text);background:var(--surface-hover)}
+.machine-name:focus{outline:1px solid var(--purple);color:var(--text)}
+.machine-dot{width:5px;height:5px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
+.machine-count{font-size:10px;color:var(--text-dim);margin-left:auto}
+
 /* Sidebar Item */
 .si{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;border-left:3px solid transparent}
 .si:hover{background:var(--surface-hover)}
@@ -330,7 +339,7 @@ function ApprovalCard({a,onDecide}){
 }
 
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames}){
   if(!s) return html`
     <div className="main-empty">
       <p>Select a session from the left panel to view details.<br/><br/>
@@ -354,6 +363,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack}){
 
       <dl className="detail-info">
         <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
+        <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
         <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
         <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
         <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
@@ -422,6 +432,7 @@ function App(){
   const[tick,setTick]=useState(0);
   const[mobileDetail,setMobileDetail]=useState(false);
   const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
+  const[mNames,setMNames]=useState({});
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
 
@@ -456,6 +467,7 @@ function App(){
       if(d.sessions)setSessions(d.sessions);
       if(d.pendingApprovals)setPending(d.pendingApprovals);
       if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled)}
+      if(d.machineNames)setMNames(d.machineNames);
       if(d.alert){
         if(d.alert.type==='complete'){
           if(sound)playComplete();
@@ -481,10 +493,17 @@ function App(){
   const toggleRA=useCallback(()=>{const v=!remoteApproval;setRemoteApproval(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({remoteApprovalEnabled:v})}).catch(()=>{})},[remoteApproval]);
   const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove]);
   const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:dec})}).catch(()=>{})},[]);
+  const renameMachine=useCallback((hostname,name)=>{fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}).catch(()=>{})},[]);
 
   const selected=sessions.find(s=>s.id===selectedId)||null;
   const globalPending=pending.filter(a=>a.status==='pending');
   const stoppedCount=sessions.filter(s=>s.status==='stopped').length;
+
+  // Group sessions by machine
+  const machineGroups=[];
+  const byHost={};
+  sessions.forEach(s=>{const h=s.hostname||'local';if(!byHost[h])byHost[h]=[];byHost[h].push(s)});
+  Object.keys(byHost).sort().forEach(h=>machineGroups.push({hostname:h,displayName:mNames[h]||h,sessions:byHost[h]}));
 
   // Count pending approvals per session
   const approvalCounts={};
@@ -522,13 +541,29 @@ function App(){
         <div className="sidebar-list">
           ${sessions.length===0
             ? html`<div className="sidebar-empty">No sessions yet.<br/>Hooks are active — start using Claude Code.</div>`
-            : sessions.map(s=>html`
-              <${SidebarItem}
-                key=${s.id} s=${s}
-                selected=${s.id===selectedId}
-                approvalCount=${approvalCounts[s.id]||0}
-                onClick=${()=>{setSelectedId(s.id);setMobileDetail(true)}}
-              />
+            : machineGroups.map(g=>html`
+              <div className="machine-group" key=${g.hostname}>
+                ${machineGroups.length>1&&html`
+                  <div className="machine-header">
+                    <div className="machine-dot"></div>
+                    <input className="machine-name"
+                      value=${g.displayName}
+                      title="Click to rename"
+                      onBlur=${e=>{const v=e.target.value.trim();if(v&&v!==g.hostname)renameMachine(g.hostname,v);else if(!v)e.target.value=g.displayName}}
+                      onKeyDown=${e=>{if(e.key==='Enter')e.target.blur()}}
+                    />
+                    <span className="machine-count">${g.sessions.length}</span>
+                  </div>
+                `}
+                ${g.sessions.map(s=>html`
+                  <${SidebarItem}
+                    key=${s.id} s=${s}
+                    selected=${s.id===selectedId}
+                    approvalCount=${approvalCounts[s.id]||0}
+                    onClick=${()=>{setSelectedId(s.id);setMobileDetail(true)}}
+                  />
+                `)}
+              </div>
             `)
           }
         </div>
@@ -550,6 +585,7 @@ function App(){
           onFocus=${focusSession}
           onRemove=${removeSession}
           onBack=${()=>setMobileDetail(false)}
+          machineNames=${mNames}
         />
       </div>
     </div>

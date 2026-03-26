@@ -688,13 +688,13 @@ function TokenChart({history, sessionId, theme}){
               ci.options.scales.y.ticks.stepSize=vm>0?vm/4:undefined;
               ci.update();
             },
-            labels:{boxWidth:0,padding:10,font:{size:10,weight:'normal'},usePointStyle:false,
+            labels:{boxWidth:8,padding:10,font:{size:10},usePointStyle:true,pointStyle:'circle',
               generateLabels:chart=>{
                 const txt=getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
                 const dm=getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim();
                 return chart.data.datasets.map((ds,i)=>{
                   const hidden=chart.getDatasetMeta(i).hidden;
-                  return{text:ds.label,fontColor:hidden?dm:txt,fillStyle:'transparent',strokeStyle:'transparent',hidden:false,datasetIndex:i}
+                  return{text:ds.label,fontColor:hidden?dm:txt,fillStyle:hidden?dm:ds.borderColor,strokeStyle:hidden?dm:ds.borderColor,hidden:false,datasetIndex:i,pointStyle:'circle'}
                 })}}
           },
           tooltip:{

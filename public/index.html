@@ -465,7 +465,7 @@ function TokenChart({history, sessionId, theme}){
 }
 
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames, theme}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames, theme, serverHostname}){
   if(!s) return html`
     <div className="main-empty">
       <p>Select a session from the left panel to view details.<br/><br/>
@@ -482,7 +482,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
         <button className="btn-back" onClick=${onBack}>Back</button>
         <div className="detail-title">${s.project}</div>
         <div className="detail-actions">
-          <button className="btn-focus" onClick=${()=>onFocus(s.id)} disabled=${!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)} title=${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'Focus the session window':'Only available on local machine'}>Focus Window</button>
+          <button className="btn-focus" onClick=${()=>onFocus(s.id)} disabled=${!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||s.hostname!==serverHostname} title=${!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'Only available on local machine':s.hostname!==serverHostname?'Session is on a remote machine':'Focus the session window'}>Focus Window</button>
           <button className="btn-remove" onClick=${()=>onRemove(s.id)}>Remove</button>
         </div>
       </div>
@@ -564,6 +564,7 @@ function App(){
   const[mobileDetail,setMobileDetail]=useState(false);
   const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
   const[mNames,setMNames]=useState({});
+  const[serverHost,setServerHost]=useState('');
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
 
@@ -609,6 +610,7 @@ function App(){
       if(d.pendingApprovals)setPending(d.pendingApprovals);
       if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled)}
       if(d.machineNames)setMNames(d.machineNames);
+      if(d.serverHostname)setServerHost(d.serverHostname);
       if(d.alert){
         if(d.alert.type==='complete'){
           if(sound)playComplete();
@@ -737,6 +739,7 @@ function App(){
           onBack=${()=>setMobileDetail(false)}
           machineNames=${mNames}
           theme=${theme}
+          serverHostname=${serverHost}
         />
       </div>
     </div>

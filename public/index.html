@@ -467,7 +467,8 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
         </div>
         <div className="setting-control" style=${{display:'flex',alignItems:'center'}}>
           <input className="setting-input" type="number" min="1" max="43200"
-            value=${settings.stoppedCleanupMinutes||1440}
+            key=${'cleanup-'+settings.stoppedCleanupMinutes}
+            defaultValue=${settings.stoppedCleanupMinutes||1440}
             onBlur=${e=>{const v=Math.max(1,Math.min(43200,Math.floor(Number(e.target.value)||1440)));e.target.value=v;save('stoppedCleanupMinutes',v)}}
             onKeyDown=${e=>{if(e.key==='Enter')e.target.blur()}}
           />
@@ -506,9 +507,7 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
 
     <div className="settings-section">
       <div className="settings-section-title">Connected Machines</div>
-      ${machineList.length===0
-        ?html`<div style=${{color:'var(--text-dim)',fontSize:'12px'}}>No machines connected yet</div>`
-        :html`<div className="machine-list">
+      ${machineList.length>0&&html`<div className="machine-list" style=${{marginBottom:'14px'}}>
           ${machineList.map(m=>{
             const active=m.sessions.filter(s=>s.status!=='stopped').length;
             const total=m.sessions.length;
@@ -528,6 +527,17 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
             </div>`})}
         </div>`
       }
+      <div style=${{borderTop:machineList.length?'1px solid var(--border)':'none',paddingTop:machineList.length?'14px':'0'}}>
+        <div className="setting-label" style=${{marginBottom:'8px'}}>Add a new machine</div>
+        <div className="setting-desc" style=${{marginBottom:'8px'}}>Run this command on the remote machine to connect it to this monitor:</div>
+        <div style=${{position:'relative'}}>
+          <pre style=${{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'8px',padding:'12px',fontSize:'11px',fontFamily:"'Cascadia Code','Consolas',monospace",color:'var(--text)',overflowX:'auto',whiteSpace:'pre-wrap',wordBreak:'break-all',margin:0,paddingRight:'40px'}}>npx claude-code-monitor-client --url=${location.protocol+'//'+location.host} --token=${authToken}</pre>
+          <button onClick=${()=>{navigator.clipboard.writeText('npx claude-code-monitor-client --url='+location.protocol+'//'+location.host+' --token='+authToken);}} style=${{position:'absolute',top:'8px',right:'8px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'4px',padding:'4px 8px',fontSize:'10px',color:'var(--text-muted)',cursor:'pointer'}} title="Copy to clipboard">Copy</button>
+        </div>
+        <div className="setting-desc" style=${{marginTop:'8px'}}>Or manually: clone this repo on the remote machine and run:<br/>
+          <code style=${{fontSize:'11px',color:'var(--purple)'}}>node install-hooks.js --url=${location.protocol+'//'+location.host} --token=${authToken}</code>
+        </div>
+      </div>
     </div>
 
     <div className="settings-section">
@@ -611,28 +621,35 @@ function TokenChart({history, sessionId, theme}){
     ];
     ds.forEach(d=>Object.assign(d,{tension:.35,pointRadius:0,pointHitRadius:8,borderWidth:1.5}));
 
-    // Dynamic Y-axis: compute nice max from all visible data with 15% headroom
-    const allVals=history.flatMap(h=>[h.input,h.output,h.cached,h.cacheWrite]);
-    const maxVal=Math.max(...allVals,1);
-    const headroom=maxVal*1.15;
-    // Round up to a nice number for the axis
-    const mag=Math.pow(10,Math.floor(Math.log10(headroom)));
-    const niceMax=Math.ceil(headroom/mag)*mag;
-
-    // Dynamic X-axis: compute time range for proper spacing
-    const tMin=history[0].time;
-    const tMax=history[history.length-1].time;
-    const span=tMax-tMin;
+    // Compute nice Y max from visible datasets only
+    function computeNiceMax(chart){
+      let vals=[];
+      const keys=['input','output','cached','cacheWrite'];
+      history.forEach(h=>{
+        keys.forEach((k,i)=>{if(!chart||!chart.getDatasetMeta(i).hidden)vals.push(h[k])});
+      });
+      if(!vals.length)vals=[1];
+      const mx=Math.max(...vals,1)*1.15;
+      const mg=Math.pow(10,Math.floor(Math.log10(mx)));
+      return Math.ceil(mx/mg)*mg;
+    }
+    const niceMax=computeNiceMax(chartRef.current);
 
     if(chartRef.current){
       // Incremental update — smooth animated transition on both axes
       const c=chartRef.current;
       c.data.labels=labels;
-      ds.forEach((d,i)=>{Object.assign(c.data.datasets[i],d)});
+      ds.forEach((d,i)=>{
+        // Preserve hidden state when updating data
+        const hidden=c.getDatasetMeta(i).hidden;
+        Object.assign(c.data.datasets[i],d);
+        if(hidden)c.getDatasetMeta(i).hidden=true;
+      });
 
-      // Animate Y-axis rescaling
-      c.options.scales.y.max=niceMax;
-      c.options.scales.y.ticks.stepSize=niceMax>0?niceMax/4:undefined;
+      // Animate Y-axis rescaling based on visible datasets
+      const visMax=computeNiceMax(c);
+      c.options.scales.y.max=visMax;
+      c.options.scales.y.ticks.stepSize=visMax>0?visMax/4:undefined;
 
       // Update colors for theme switch
       c.options.scales.x.ticks.color=dim;c.options.scales.x.grid.color=brd;
@@ -659,7 +676,21 @@ function TokenChart({history, sessionId, theme}){
         },
         interaction:{mode:'index',intersect:false},
         plugins:{
-          legend:{display:true,position:'top',labels:{color:dim,boxWidth:8,padding:8,font:{size:10},usePointStyle:true,pointStyle:'circle'}},
+          legend:{display:true,position:'top',
+            onClick:(e,item,legend)=>{
+              // Default toggle behavior
+              const ci=legend.chart;
+              const idx=item.datasetIndex;
+              ci.getDatasetMeta(idx).hidden=!ci.getDatasetMeta(idx).hidden;
+              // Recompute Y-axis for visible datasets only
+              const vm=computeNiceMax(ci);
+              ci.options.scales.y.max=vm;
+              ci.options.scales.y.ticks.stepSize=vm>0?vm/4:undefined;
+              ci.update();
+            },
+            labels:{color:dim,boxWidth:8,padding:8,font:{size:10},usePointStyle:true,pointStyle:'circle',
+              generateLabels:chart=>chart.data.datasets.map((ds,i)=>({text:ds.label,fillStyle:ds.borderColor,strokeStyle:ds.borderColor,hidden:chart.getDatasetMeta(i).hidden,datasetIndex:i,pointStyle:'circle'}))}
+          },
           tooltip:{
             backgroundColor:'rgba(0,0,0,0.8)',titleFont:{size:11},bodyFont:{size:11},
             callbacks:{
@@ -880,7 +911,7 @@ function App(){
       }
     }catch{}};
     wsRef.current=ws;
-  },[sound]);
+  },[sound,authToken]);
 
   useEffect(()=>{
     if(!authToken)return;

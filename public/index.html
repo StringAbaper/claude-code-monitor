@@ -153,6 +153,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .usage-out{color:var(--green)}
 .usage-cache{color:var(--text-dim)}
 
+.detail-top{display:flex;border-bottom:1px solid var(--border)}
+.detail-top .detail-info{border-bottom:none;flex:0 0 auto;min-width:280px}
+.detail-chart{flex:1;min-width:180px;padding:12px 16px;border-left:1px solid var(--border);position:relative}
+.detail-chart-empty{color:var(--text-dim);font-size:12px;display:flex;align-items:center;justify-content:center;height:100%;min-height:100px}
+
 .detail-activity{padding:16px 24px;border-bottom:1px solid var(--border)}
 .detail-activity-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
 .detail-activity-text{font-size:14px;color:var(--text)}
@@ -240,6 +245,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   .detail-header{padding:12px 16px 10px;flex-wrap:wrap;gap:8px}
   .detail-title{font-size:17px;width:100%}
   .detail-info{padding:12px 16px;grid-template-columns:80px 1fr;gap:4px 12px;font-size:12px}
+  .detail-top{flex-direction:column}
+  .detail-chart{border-left:none;border-top:1px solid var(--border);max-height:160px;min-height:120px}
   .detail-activity{padding:10px 16px}
   .detail-activity-label{font-size:10px;margin-bottom:4px}
   .event-header{padding:8px 16px 4px;font-size:10px}
@@ -273,6 +280,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   .detail-title{font-size:15px}
   .detail-header{padding:10px 12px 8px;gap:6px}
   .detail-info{padding:10px 12px;grid-template-columns:70px 1fr;font-size:11px}
+  .detail-chart{max-height:130px;padding:8px 12px}
   .detail-activity{padding:8px 12px}
   .ev{padding:3px 10px;font-size:10px;gap:4px}
   .ev-type{min-width:55px;font-size:10px}
@@ -287,6 +295,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script>
 const{createElement,useState,useEffect,useRef,useCallback}=React;
 const html=htm.bind(createElement);
@@ -383,8 +392,80 @@ function ApprovalCard({a,onDecide}){
   `;
 }
 
+// ── Token Usage Chart (scrolling line chart) ──
+function TokenChart({history, sessionId, theme}){
+  const canvasRef=useRef(null);
+  const chartRef=useRef(null);
+
+  // Cleanup on unmount
+  useEffect(()=>()=>{if(chartRef.current){chartRef.current.destroy();chartRef.current=null}},[]);
+
+  useEffect(()=>{
+    if(!canvasRef.current)return;
+
+    // Session changed — destroy old chart
+    if(chartRef.current&&chartRef.current._sid!==sessionId){
+      chartRef.current.destroy();chartRef.current=null;
+    }
+    if(!history||!history.length){
+      if(chartRef.current){chartRef.current.destroy();chartRef.current=null}
+      return;
+    }
+
+    const cs=getComputedStyle(document.documentElement);
+    const v=k=>cs.getPropertyValue(k).trim();
+    const dim=v('--text-dim'),brd=v('--border'),blue=v('--blue'),green=v('--green'),gray=v('--gray'),amber=v('--amber');
+
+    const labels=history.map(h=>clockTime(h.time));
+    const ds=[
+      {label:'Input',   data:history.map(h=>h.input),      borderColor:blue, backgroundColor:blue+'18',  fill:true},
+      {label:'Output',  data:history.map(h=>h.output),     borderColor:green,backgroundColor:green+'18', fill:true},
+      {label:'Cached',  data:history.map(h=>h.cached),     borderColor:gray, backgroundColor:gray+'10',  fill:true},
+      {label:'Cache-W', data:history.map(h=>h.cacheWrite), borderColor:amber,backgroundColor:amber+'10', fill:true},
+    ];
+    ds.forEach(d=>Object.assign(d,{tension:.3,pointRadius:0,pointHitRadius:6,borderWidth:1.5}));
+
+    if(chartRef.current){
+      // Incremental update — smooth scroll effect
+      const c=chartRef.current;
+      c.data.labels=labels;
+      ds.forEach((d,i)=>{Object.assign(c.data.datasets[i],d)});
+      c.options.scales.x.ticks.color=dim;c.options.scales.x.grid.color=brd;
+      c.options.scales.y.ticks.color=dim;c.options.scales.y.grid.color=brd;
+      c.options.plugins.legend.labels.color=dim;
+      c.update();
+      return;
+    }
+
+    // Create new chart
+    chartRef.current=new Chart(canvasRef.current,{
+      type:'line',
+      data:{labels,datasets:ds},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        animation:{duration:400,easing:'easeOutQuart'},
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:true,position:'top',labels:{color:dim,boxWidth:8,padding:8,font:{size:10}}},
+          tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtTokens(ctx.parsed.y)}}
+        },
+        scales:{
+          x:{ticks:{color:dim,font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{color:brd}},
+          y:{ticks:{color:dim,font:{size:9},callback:v=>fmtTokens(v)},grid:{color:brd},beginAtZero:true}
+        }
+      }
+    });
+    chartRef.current._sid=sessionId;
+  },[history,sessionId,theme]);
+
+  return html`<div className="detail-chart">
+    <canvas ref=${canvasRef} style=${{display:history&&history.length?'block':'none'}}></canvas>
+    ${(!history||!history.length)&&html`<div className="detail-chart-empty">No token data yet</div>`}
+  </div>`;
+}
+
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames, theme}){
   if(!s) return html`
     <div className="main-empty">
       <p>Select a session from the left panel to view details.<br/><br/>
@@ -401,28 +482,31 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
         <button className="btn-back" onClick=${onBack}>Back</button>
         <div className="detail-title">${s.project}</div>
         <div className="detail-actions">
-          <button className="btn-focus" onClick=${()=>onFocus(s.id)}>Focus Window</button>
+          <button className="btn-focus" onClick=${()=>onFocus(s.id)} disabled=${!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)} title=${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'Focus the session window':'Only available on local machine'}>Focus Window</button>
           <button className="btn-remove" onClick=${()=>onRemove(s.id)}>Remove</button>
         </div>
       </div>
 
-      <dl className="detail-info">
-        <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
-        <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
-        <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
-        <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
-        <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
-        <dt>Events</dt><dd>${s.eventCount}</dd>
-        ${totalTokens(s.usage)>0&&html`
-          <dt>Tokens</dt>
-          <dd className="usage-row">
-            <span className="usage-in" title="Input tokens">${fmtTokens(s.usage.input_tokens)} in</span>
-            <span className="usage-out" title="Output tokens">${fmtTokens(s.usage.output_tokens)} out</span>
-            ${s.usage.cache_read_input_tokens>0&&html`<span className="usage-cache" title="Cache read">${fmtTokens(s.usage.cache_read_input_tokens)} cached</span>`}
-            ${s.usage.cache_creation_input_tokens>0&&html`<span className="usage-cache" title="Cache creation">${fmtTokens(s.usage.cache_creation_input_tokens)} cache-write</span>`}
-          </dd>
-        `}
-      </dl>
+      <div className="detail-top">
+        <dl className="detail-info">
+          <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
+          <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
+          <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
+          <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
+          <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
+          <dt>Events</dt><dd>${s.eventCount}</dd>
+          ${totalTokens(s.usage)>0&&html`
+            <dt>Tokens</dt>
+            <dd className="usage-row">
+              <span className="usage-in" title="Input tokens">${fmtTokens(s.usage.input_tokens)} in</span>
+              <span className="usage-out" title="Output tokens">${fmtTokens(s.usage.output_tokens)} out</span>
+              ${s.usage.cache_read_input_tokens>0&&html`<span className="usage-cache" title="Cache read">${fmtTokens(s.usage.cache_read_input_tokens)} cached</span>`}
+              ${s.usage.cache_creation_input_tokens>0&&html`<span className="usage-cache" title="Cache creation">${fmtTokens(s.usage.cache_creation_input_tokens)} cache-write</span>`}
+            </dd>
+          `}
+        </dl>
+        <${TokenChart} history=${s.usageHistory} sessionId=${s.id} theme=${theme}/>
+      </div>
 
       <div className="detail-activity">
         <div className="detail-activity-label">Current Activity</div>
@@ -652,6 +736,7 @@ function App(){
           onRemove=${removeSession}
           onBack=${()=>setMobileDetail(false)}
           machineNames=${mNames}
+          theme=${theme}
         />
       </div>
     </div>

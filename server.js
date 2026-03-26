@@ -8,6 +8,7 @@ const os = require("os");
 
 const store = require("./lib/store");
 const routes = require("./lib/routes");
+const { timingSafeEqual } = require("./lib/auth");
 
 const PORT = process.env.PORT || 7888;
 const USE_HTTPS = process.argv.includes("--https") || process.env.HTTPS === "true";
@@ -78,7 +79,7 @@ function broadcast(data) {
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const token = url.searchParams.get("token");
-  if (!token || token !== store.getApiToken()) {
+  if (!timingSafeEqual(token, store.getApiToken())) {
     ws.close(4001, "Unauthorized");
     return;
   }
@@ -95,6 +96,7 @@ routes.register(app, broadcast);
 setInterval(() => store.checkIdleSessions(broadcast), 10_000);
 setInterval(() => store.saveSessions(), 30_000);
 setInterval(() => store.cleanupExpiredApprovals(broadcast), 5_000);
+setInterval(() => { if (store.cleanupOldSessions()) broadcast(store.getFullState()); }, 600_000); // every 10 min
 
 process.on("SIGINT", () => { store.saveSessions(); process.exit(0); });
 process.on("SIGTERM", () => { store.saveSessions(); process.exit(0); });

@@ -199,6 +199,40 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .login-hint{font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center}
 .btn-logout{background:none;border:1px solid var(--border);color:var(--text-dim);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
 .btn-logout:hover{color:var(--red);border-color:rgba(239,68,68,0.3)}
+.btn-settings{background:none;border:1px solid var(--border);color:var(--text-dim);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.btn-settings:hover{color:var(--purple);border-color:rgba(139,92,246,0.3)}
+.btn-settings.active{color:var(--purple);border-color:var(--purple);background:var(--purple-bg)}
+
+/* ── Settings Panel ── */
+.settings{flex:1;overflow-y:auto;padding:24px}
+.settings-title{font-size:20px;font-weight:700;margin-bottom:20px}
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px}
+.settings-section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:14px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-size:13px;color:var(--text)}
+.setting-desc{font-size:11px;color:var(--text-dim);margin-top:2px}
+.setting-control{flex-shrink:0;margin-left:16px}
+.setting-input{width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:13px;text-align:center;font-family:'Cascadia Code','Consolas',monospace}
+.setting-input:focus{outline:none;border-color:var(--purple)}
+.setting-unit{font-size:11px;color:var(--text-dim);margin-left:6px}
+.toggle{position:relative;width:36px;height:20px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-track{position:absolute;inset:0;background:var(--border-light);border-radius:10px;transition:background 0.2s}
+.toggle input:checked+.toggle-track{background:var(--purple)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform 0.2s}
+.toggle input:checked~.toggle-thumb{transform:translateX(16px)}
+.machine-list{display:flex;flex-direction:column;gap:8px}
+.machine-card{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:12px}
+.machine-card-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.machine-card-dot.active{background:var(--green)}
+.machine-card-dot.inactive{background:var(--text-dim)}
+.machine-card-info{flex:1;min-width:0}
+.machine-card-name{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.machine-card-host{font-size:11px;color:var(--text-dim);font-family:'Cascadia Code','Consolas',monospace}
+.machine-card-stats{text-align:right;flex-shrink:0;color:var(--text-muted);font-size:11px}
+.sidebar-archived{padding:8px 16px;font-size:11px;color:var(--text-dim);cursor:pointer;text-align:center;transition:color 0.15s}
+.sidebar-archived:hover{color:var(--text-muted)}
 
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -270,6 +304,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
   .main-empty{padding:24px 16px}
   .main-empty p{font-size:13px}
+  .settings{padding:16px}
+  .settings-title{font-size:17px;margin-bottom:14px}
+  .settings-section{padding:14px}
+  .setting-row{flex-wrap:wrap;gap:6px}
 }
 
 @media(max-width:400px){
@@ -392,6 +430,154 @@ function ApprovalCard({a,onDecide}){
   `;
 }
 
+// ── Settings Panel ──
+function SettingsPanel({settings, sessions, machineNames, serverHostname, authToken, updateInfo}){
+  const authH={'Authorization':'Bearer '+authToken,'Content-Type':'application/json'};
+  const save=(field,val)=>{
+    fetch('/api/settings',{method:'POST',headers:authH,body:JSON.stringify({[field]:val})}).catch(()=>{});
+  };
+  const[checking,setChecking]=useState(false);
+  const[applying,setApplying]=useState(false);
+  const checkNow=()=>{setChecking(true);fetch('/api/update/check',{method:'POST',headers:authH}).then(r=>r.json()).then(()=>setChecking(false)).catch(()=>setChecking(false))};
+  const applyNow=()=>{if(!confirm('This will pull the latest code and may require a server restart. Continue?'))return;setApplying(true);fetch('/api/update/apply',{method:'POST',headers:authH}).then(r=>r.json()).then(r=>{setApplying(false);if(r.needsRestart)alert('Updated to v'+r.version+'. Please restart the server.')}).catch(()=>setApplying(false))};
+
+  // Group sessions by machine
+  const machines={};
+  sessions.forEach(s=>{
+    const h=s.hostname||'local';
+    if(!machines[h])machines[h]={hostname:h,displayName:machineNames[h]||h,sessions:[],lastActivity:0};
+    machines[h].sessions.push(s);
+    if(s.lastActivity>machines[h].lastActivity)machines[h].lastActivity=s.lastActivity;
+  });
+  const machineList=Object.values(machines).sort((a,b)=>b.lastActivity-a.lastActivity);
+
+  const renameMachine=(hostname,name)=>{
+    fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:authH,body:JSON.stringify({name})}).catch(()=>{});
+  };
+
+  return html`<div className="settings">
+    <div className="settings-title">Settings</div>
+
+    <div className="settings-section">
+      <div className="settings-section-title">Session Cleanup</div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Auto-remove stopped sessions</div>
+          <div className="setting-desc">Sessions will be deleted after this period of inactivity</div>
+        </div>
+        <div className="setting-control" style=${{display:'flex',alignItems:'center'}}>
+          <input className="setting-input" type="number" min="1" max="43200"
+            value=${settings.stoppedCleanupMinutes||1440}
+            onBlur=${e=>{const v=Math.max(1,Math.min(43200,Math.floor(Number(e.target.value)||1440)));e.target.value=v;save('stoppedCleanupMinutes',v)}}
+            onKeyDown=${e=>{if(e.key==='Enter')e.target.blur()}}
+          />
+          <span className="setting-unit">min${settings.stoppedCleanupMinutes>59?' ('+(settings.stoppedCleanupMinutes/60|0)+'h'+(settings.stoppedCleanupMinutes%60?(' '+(settings.stoppedCleanupMinutes%60)+'m'):'')+ ')':''}</span>
+        </div>
+      </div>
+    </div>
+
+    <div className="settings-section">
+      <div className="settings-section-title">Display</div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Token Usage Chart</div>
+          <div className="setting-desc">Show token consumption graph in session detail</div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${settings.showTokenChart!==false}
+            onChange=${e=>save('showTokenChart',e.target.checked)}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Auto-archive stopped sessions</div>
+          <div className="setting-desc">Hide stopped sessions from sidebar (viewable via "archived" link)</div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${!!settings.autoArchiveStopped}
+            onChange=${e=>save('autoArchiveStopped',e.target.checked)}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <div className="settings-section">
+      <div className="settings-section-title">Connected Machines</div>
+      ${machineList.length===0
+        ?html`<div style=${{color:'var(--text-dim)',fontSize:'12px'}}>No machines connected yet</div>`
+        :html`<div className="machine-list">
+          ${machineList.map(m=>{
+            const active=m.sessions.filter(s=>s.status!=='stopped').length;
+            const total=m.sessions.length;
+            const isServer=m.hostname===serverHostname;
+            return html`<div className="machine-card" key=${m.hostname}>
+              <div className=${`machine-card-dot ${active>0?'active':'inactive'}`}></div>
+              <div className="machine-card-info">
+                <div className="machine-card-name">
+                  ${m.displayName}${isServer?' (server)':''}
+                </div>
+                <div className="machine-card-host">${m.hostname}</div>
+              </div>
+              <div className="machine-card-stats">
+                ${active} active / ${total} total<br/>
+                ${m.lastActivity?timeAgo(m.lastActivity):'—'}
+              </div>
+            </div>`})}
+        </div>`
+      }
+    </div>
+
+    <div className="settings-section">
+      <div className="settings-section-title">Updates</div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Auto-update</div>
+          <div className="setting-desc">Automatically check and apply updates from GitHub (hourly)</div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${!!settings.autoUpdateEnabled}
+            onChange=${e=>save('autoUpdateEnabled',e.target.checked)}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
+      </div>
+      <div className="setting-row" style=${{flexDirection:'column',alignItems:'stretch',gap:'8px'}}>
+        <div style=${{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div className="setting-label">Current version: v${updateInfo.currentVersion||'?'}</div>
+            ${updateInfo.updateAvailable
+              ?html`<div className="setting-desc" style=${{color:'var(--green)'}}>v${updateInfo.latestVersion} available</div>`
+              :html`<div className="setting-desc">${updateInfo.lastCheck?'Up to date':'Not checked yet'}</div>`
+            }
+          </div>
+          <div style=${{display:'flex',gap:'6px'}}>
+            <button className="btn-focus" onClick=${checkNow} disabled=${checking} style=${{fontSize:'11px',padding:'4px 12px'}}>
+              ${checking?'Checking...':'Check Now'}
+            </button>
+            ${updateInfo.updateAvailable&&html`
+              <button className="btn-allow" onClick=${applyNow} disabled=${applying} style=${{fontSize:'11px',padding:'4px 12px'}}>
+                ${applying?'Updating...':'Update to v'+updateInfo.latestVersion}
+              </button>
+            `}
+          </div>
+        </div>
+        ${updateInfo.lastCheck&&html`
+          <div className="setting-desc">Last checked: ${timeAgo(updateInfo.lastCheck)}</div>
+        `}
+        ${updateInfo.lastError&&html`
+          <div className="setting-desc" style=${{color:'var(--red)'}}>Error: ${updateInfo.lastError}</div>
+        `}
+        ${updateInfo.lastUpdate&&html`
+          <div className="setting-desc" style=${{color:'var(--green)'}}>Last updated: ${new Date(updateInfo.lastUpdate).toLocaleString()}</div>
+        `}
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── Token Usage Chart (scrolling line chart) ──
 function TokenChart({history, sessionId, theme}){
   const canvasRef=useRef(null);
@@ -423,16 +609,39 @@ function TokenChart({history, sessionId, theme}){
       {label:'Cached',  data:history.map(h=>h.cached),     borderColor:gray, backgroundColor:gray+'10',  fill:true},
       {label:'Cache-W', data:history.map(h=>h.cacheWrite), borderColor:amber,backgroundColor:amber+'10', fill:true},
     ];
-    ds.forEach(d=>Object.assign(d,{tension:.3,pointRadius:0,pointHitRadius:6,borderWidth:1.5}));
+    ds.forEach(d=>Object.assign(d,{tension:.35,pointRadius:0,pointHitRadius:8,borderWidth:1.5}));
+
+    // Dynamic Y-axis: compute nice max from all visible data with 15% headroom
+    const allVals=history.flatMap(h=>[h.input,h.output,h.cached,h.cacheWrite]);
+    const maxVal=Math.max(...allVals,1);
+    const headroom=maxVal*1.15;
+    // Round up to a nice number for the axis
+    const mag=Math.pow(10,Math.floor(Math.log10(headroom)));
+    const niceMax=Math.ceil(headroom/mag)*mag;
+
+    // Dynamic X-axis: compute time range for proper spacing
+    const tMin=history[0].time;
+    const tMax=history[history.length-1].time;
+    const span=tMax-tMin;
 
     if(chartRef.current){
-      // Incremental update — smooth scroll effect
+      // Incremental update — smooth animated transition on both axes
       const c=chartRef.current;
       c.data.labels=labels;
       ds.forEach((d,i)=>{Object.assign(c.data.datasets[i],d)});
+
+      // Animate Y-axis rescaling
+      c.options.scales.y.max=niceMax;
+      c.options.scales.y.ticks.stepSize=niceMax>0?niceMax/4:undefined;
+
+      // Update colors for theme switch
       c.options.scales.x.ticks.color=dim;c.options.scales.x.grid.color=brd;
       c.options.scales.y.ticks.color=dim;c.options.scales.y.grid.color=brd;
       c.options.plugins.legend.labels.color=dim;
+
+      // Adapt X tick density based on data count
+      c.options.scales.x.ticks.maxTicksLimit=history.length<=10?history.length:Math.min(8,Math.max(4,Math.floor(history.length/3)));
+
       c.update();
       return;
     }
@@ -443,15 +652,35 @@ function TokenChart({history, sessionId, theme}){
       data:{labels,datasets:ds},
       options:{
         responsive:true,maintainAspectRatio:false,
-        animation:{duration:400,easing:'easeOutQuart'},
+        animation:{duration:500,easing:'easeOutQuart'},
+        transitions:{
+          active:{animation:{duration:200}},
+          resize:{animation:{duration:0}}
+        },
         interaction:{mode:'index',intersect:false},
         plugins:{
-          legend:{display:true,position:'top',labels:{color:dim,boxWidth:8,padding:8,font:{size:10}}},
-          tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtTokens(ctx.parsed.y)}}
+          legend:{display:true,position:'top',labels:{color:dim,boxWidth:8,padding:8,font:{size:10},usePointStyle:true,pointStyle:'circle'}},
+          tooltip:{
+            backgroundColor:'rgba(0,0,0,0.8)',titleFont:{size:11},bodyFont:{size:11},
+            callbacks:{
+              title:items=>items[0]?.label||'',
+              label:ctx=>' '+ctx.dataset.label+': '+fmtTokens(ctx.parsed.y)
+            }
+          }
         },
         scales:{
-          x:{ticks:{color:dim,font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{color:brd}},
-          y:{ticks:{color:dim,font:{size:9},callback:v=>fmtTokens(v)},grid:{color:brd},beginAtZero:true}
+          x:{
+            ticks:{color:dim,font:{size:9},maxTicksLimit:history.length<=10?history.length:Math.min(8,Math.max(4,Math.floor(history.length/3))),maxRotation:0},
+            grid:{color:brd,drawTicks:false},
+            border:{display:false}
+          },
+          y:{
+            max:niceMax,
+            ticks:{color:dim,font:{size:9},callback:v=>fmtTokens(v),stepSize:niceMax>0?niceMax/4:undefined,maxTicksLimit:5},
+            grid:{color:brd,drawTicks:false},
+            border:{display:false},
+            beginAtZero:true
+          }
         }
       }
     });
@@ -465,7 +694,7 @@ function TokenChart({history, sessionId, theme}){
 }
 
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames, theme, serverHostname}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames, theme, serverHostname, showTokenChart}){
   if(!s) return html`
     <div className="main-empty">
       <p>Select a session from the left panel to view details.<br/><br/>
@@ -487,7 +716,28 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
         </div>
       </div>
 
-      <div className="detail-top">
+      ${showTokenChart?html`
+        <div className="detail-top">
+          <dl className="detail-info">
+            <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
+            <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
+            <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
+            <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
+            <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
+            <dt>Events</dt><dd>${s.eventCount}</dd>
+            ${totalTokens(s.usage)>0&&html`
+              <dt>Tokens</dt>
+              <dd className="usage-row">
+                <span className="usage-in" title="Input tokens">${fmtTokens(s.usage.input_tokens)} in</span>
+                <span className="usage-out" title="Output tokens">${fmtTokens(s.usage.output_tokens)} out</span>
+                ${s.usage.cache_read_input_tokens>0&&html`<span className="usage-cache" title="Cache read">${fmtTokens(s.usage.cache_read_input_tokens)} cached</span>`}
+                ${s.usage.cache_creation_input_tokens>0&&html`<span className="usage-cache" title="Cache creation">${fmtTokens(s.usage.cache_creation_input_tokens)} cache-write</span>`}
+              </dd>
+            `}
+          </dl>
+          <${TokenChart} history=${s.usageHistory} sessionId=${s.id} theme=${theme}/>
+        </div>
+      `:html`
         <dl className="detail-info">
           <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
           <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
@@ -505,8 +755,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
             </dd>
           `}
         </dl>
-        <${TokenChart} history=${s.usageHistory} sessionId=${s.id} theme=${theme}/>
-      </div>
+      `}
 
       <div className="detail-activity">
         <div className="detail-activity-label">Current Activity</div>
@@ -565,6 +814,10 @@ function App(){
   const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
   const[mNames,setMNames]=useState({});
   const[serverHost,setServerHost]=useState('');
+  const[showSettings,setShowSettings]=useState(false);
+  const[settings,setSettings]=useState({stoppedCleanupMinutes:1440,showTokenChart:true,autoArchiveStopped:false});
+  const[showArchived,setShowArchived]=useState(false);
+  const[updateInfo,setUpdateInfo]=useState({});
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
 
@@ -608,9 +861,10 @@ function App(){
       const d=JSON.parse(e.data);
       if(d.sessions)setSessions(d.sessions);
       if(d.pendingApprovals)setPending(d.pendingApprovals);
-      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled)}
+      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled);setSettings(d.settings)}
       if(d.machineNames)setMNames(d.machineNames);
       if(d.serverHostname)setServerHost(d.serverHostname);
+      if(d.updateState)setUpdateInfo(d.updateState);
       if(d.alert){
         if(d.alert.type==='complete'){
           if(sound)playComplete();
@@ -649,11 +903,17 @@ function App(){
   const selected=sessions.find(s=>s.id===selectedId)||null;
   const globalPending=pending.filter(a=>a.status==='pending');
   const stoppedCount=sessions.filter(s=>s.status==='stopped').length;
+  const archivedCount=settings.autoArchiveStopped?stoppedCount:0;
+
+  // Filter sessions for sidebar (archive stopped if enabled and not showing archived)
+  const visibleSessions=settings.autoArchiveStopped&&!showArchived
+    ?sessions.filter(s=>s.status!=='stopped')
+    :sessions;
 
   // Group sessions by machine
   const machineGroups=[];
   const byHost={};
-  sessions.forEach(s=>{const h=s.hostname||'local';if(!byHost[h])byHost[h]=[];byHost[h].push(s)});
+  visibleSessions.forEach(s=>{const h=s.hostname||'local';if(!byHost[h])byHost[h]=[];byHost[h].push(s)});
   Object.keys(byHost).sort().forEach(h=>machineGroups.push({hostname:h,displayName:mNames[h]||h,sessions:byHost[h]}));
 
   // Count pending approvals per session
@@ -667,6 +927,7 @@ function App(){
           <div className="logo"><span>Claude Code</span> Monitor</div>
           <div className="header-right">
             <button className="btn-theme" onClick=${toggleTheme} title=${theme==='dark'?'Light mode':'Dark mode'}>${theme==='dark'?'\u2600':'🌙'}</button>
+            <button className=${`btn-settings${showSettings?' active':''}`} onClick=${()=>{setShowSettings(!showSettings);if(!showSettings){setSelectedId(null);setMobileDetail(true)}}} title="Settings">\u2699</button>
             <button className="btn-logout" onClick=${logout} title="Logout">⏻</button>
             <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
           </div>
@@ -691,7 +952,7 @@ function App(){
         </div>
 
         <div className="sidebar-list">
-          ${sessions.length===0
+          ${visibleSessions.length===0&&archivedCount===0
             ? html`<div className="sidebar-empty">No sessions yet.<br/>Hooks are active — start using Claude Code.</div>`
             : machineGroups.map(g=>html`
               <div className="machine-group" key=${g.hostname}>
@@ -712,12 +973,22 @@ function App(){
                     key=${s.id} s=${s}
                     selected=${s.id===selectedId}
                     approvalCount=${approvalCounts[s.id]||0}
-                    onClick=${()=>{setSelectedId(s.id);setMobileDetail(true)}}
+                    onClick=${()=>{setSelectedId(s.id);setMobileDetail(true);setShowSettings(false)}}
                   />
                 `)}
               </div>
             `)
           }
+          ${archivedCount>0&&!showArchived&&html`
+            <div className="sidebar-archived" onClick=${()=>setShowArchived(true)}>
+              ${archivedCount} archived session${archivedCount>1?'s':''}
+            </div>
+          `}
+          ${showArchived&&settings.autoArchiveStopped&&html`
+            <div className="sidebar-archived" onClick=${()=>setShowArchived(false)}>
+              Hide archived
+            </div>
+          `}
         </div>
       </div>
 
@@ -730,17 +1001,28 @@ function App(){
             </div>
           </div>
         `}
-        <${DetailPanel}
-          s=${selected}
-          approvals=${pending}
-          onDecide=${decideApproval}
-          onFocus=${focusSession}
-          onRemove=${removeSession}
-          onBack=${()=>setMobileDetail(false)}
-          machineNames=${mNames}
-          theme=${theme}
-          serverHostname=${serverHost}
-        />
+        ${showSettings
+          ?html`<${SettingsPanel}
+            settings=${settings}
+            sessions=${sessions}
+            machineNames=${mNames}
+            serverHostname=${serverHost}
+            authToken=${authToken}
+            updateInfo=${updateInfo}
+          />`
+          :html`<${DetailPanel}
+            s=${selected}
+            approvals=${pending}
+            onDecide=${decideApproval}
+            onFocus=${focusSession}
+            onRemove=${removeSession}
+            onBack=${()=>setMobileDetail(false)}
+            machineNames=${mNames}
+            theme=${theme}
+            serverHostname=${serverHost}
+            showTokenChart=${settings.showTokenChart!==false}
+          />`
+        }
       </div>
     </div>
   `;

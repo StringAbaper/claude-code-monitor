@@ -9,6 +9,7 @@ const os = require("os");
 const store = require("./lib/store");
 const routes = require("./lib/routes");
 const { timingSafeEqual } = require("./lib/auth");
+const updater = require("./lib/updater");
 
 const PORT = process.env.PORT || 7888;
 const USE_HTTPS = process.argv.includes("--https") || process.env.HTTPS === "true";
@@ -69,8 +70,13 @@ if (USE_HTTPS) {
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 
+function augmentState(data) {
+  if (data && data.type === "update") data.updateState = updater.getUpdateState();
+  return data;
+}
+
 function broadcast(data) {
-  const msg = JSON.stringify(data);
+  const msg = JSON.stringify(augmentState(data));
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(msg);
   }
@@ -83,7 +89,7 @@ wss.on("connection", (ws, req) => {
     ws.close(4001, "Unauthorized");
     return;
   }
-  ws.send(JSON.stringify(store.getFullState()));
+  ws.send(JSON.stringify(augmentState(store.getFullState())));
   ws.on("error", () => {});
 });
 
@@ -98,8 +104,11 @@ setInterval(() => store.saveSessions(), 30_000);
 setInterval(() => store.cleanupExpiredApprovals(broadcast), 5_000);
 setInterval(() => { if (store.cleanupOldSessions()) broadcast(store.getFullState()); }, 600_000); // every 10 min
 
-process.on("SIGINT", () => { store.saveSessions(); process.exit(0); });
-process.on("SIGTERM", () => { store.saveSessions(); process.exit(0); });
+// Auto-update checker
+updater.startPeriodicCheck(store, () => broadcast(store.getFullState()));
+
+process.on("SIGINT", () => { store.saveSessions(); updater.stopPeriodicCheck(); process.exit(0); });
+process.on("SIGTERM", () => { store.saveSessions(); updater.stopPeriodicCheck(); process.exit(0); });
 
 // ──────────────────────────────────────────────
 // Listen
@@ -121,7 +130,7 @@ server.listen(PORT, "0.0.0.0", () => {
   const hasPw = !!store.getDashboardPasswordHash();
   console.log("");
   console.log("  ╔══════════════════════════════════════════════╗");
-  console.log("  ║         Claude Code Monitor v1.3.0           ║");
+  console.log("  ║         Claude Code Monitor v1.4.0           ║");
   console.log(`  ║  Local:   ${proto}://localhost:${PORT}                ║`);
   console.log(`  ║  LAN:     ${proto}://${lanIP}:${PORT}          ║`);
   console.log(`  ║  HTTPS:   ${USE_HTTPS ? "ON" : "OFF (use --https to enable)"}             ║`);

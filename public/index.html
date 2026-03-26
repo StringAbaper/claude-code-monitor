@@ -688,8 +688,14 @@ function TokenChart({history, sessionId, theme}){
               ci.options.scales.y.ticks.stepSize=vm>0?vm/4:undefined;
               ci.update();
             },
-            labels:{color:dim,boxWidth:8,padding:8,font:{size:10},usePointStyle:true,pointStyle:'circle',
-              generateLabels:chart=>chart.data.datasets.map((ds,i)=>({text:ds.label,fillStyle:ds.borderColor,strokeStyle:ds.borderColor,hidden:chart.getDatasetMeta(i).hidden,datasetIndex:i,pointStyle:'circle'}))}
+            labels:{boxWidth:0,padding:10,font:{size:10,weight:'normal'},usePointStyle:false,
+              generateLabels:chart=>{
+                const txt=getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
+                const dm=getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim();
+                return chart.data.datasets.map((ds,i)=>{
+                  const hidden=chart.getDatasetMeta(i).hidden;
+                  return{text:ds.label,fontColor:hidden?dm:txt,fillStyle:'transparent',strokeStyle:'transparent',hidden:false,datasetIndex:i}
+                })}}
           },
           tooltip:{
             backgroundColor:'rgba(0,0,0,0.8)',titleFont:{size:11},bodyFont:{size:11},

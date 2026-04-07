@@ -1005,7 +1005,8 @@ function App(){
 
   const selected=sessions.find(s=>s.id===selectedId)||null;
   const globalPending=pending.filter(a=>a.status==='pending');
-  const stoppedCount=sessions.filter(s=>s.status==='stopped').length;
+  const nowMs=Date.now();
+  const stoppedCount=sessions.filter(s=>s.status==='stopped'||(s.status==='idle'&&nowMs-s.lastActivity>3600000)).length;
   const archivedCount=settings.autoArchiveStopped?stoppedCount:0;
 
   // Filter sessions for sidebar (archive stopped if enabled and not showing archived)

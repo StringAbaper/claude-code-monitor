@@ -1,0 +1,74 @@
+/* Raycast skin — near-black blue-tint, macOS native feel, red punctuation */
+
+:root, [data-theme="dark"] {
+  --bg: #07080a;
+  --surface: #101111;
+  --surface2: #1b1c1e;
+  --surface-hover: #252829;
+  --border: rgba(255,255,255,0.08);
+  --border-light: rgba(255,255,255,0.12);
+  --text: #f9f9f9;
+  --text-muted: #9c9c9d;
+  --text-dim: #6a6b6c;
+  --green: #5fc992;
+  --green-bg: rgba(95,201,146,0.10);
+  --amber: #ffbc33;
+  --amber-bg: rgba(255,188,51,0.10);
+  --red: #ff6363;
+  --red-bg: rgba(255,99,99,0.10);
+  --blue: #55b3ff;
+  --blue-bg: rgba(85,179,255,0.10);
+  --gray: #6a6b6c;
+  --purple: #ff6363;
+  --purple-bg: rgba(255,99,99,0.10);
+}
+
+[data-theme="light"] {
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface2: #f4f4f5;
+  --surface-hover: #e4e4e7;
+  --border: #e4e4e7;
+  --border-light: #d4d4d8;
+  --text: #18191a;
+  --text-muted: #6a6b6c;
+  --text-dim: #9c9c9d;
+  --blue: #0066cc;
+  --purple: #ff6363;
+}
+
+html, body, .app {
+  font-family: -apple-system, 'SF Pro Text', 'Inter', BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sidebar-item, .approval-card, .anomaly-toast, .panel {
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: rgba(0,0,0,0.2) 0px 2px 8px, rgba(255,255,255,0.04) 0px 1px 0px 0px inset;
+}
+[data-theme="light"] .sidebar-item,
+[data-theme="light"] .approval-card,
+[data-theme="light"] .anomaly-toast,
+[data-theme="light"] .panel {
+  border-color: #e4e4e7;
+  box-shadow: rgba(0,0,0,0.04) 0px 2px 8px;
+}
+
+.burn-pill {
+  border-radius: 86px;
+  box-shadow: rgba(255,255,255,0.08) 0px 1px 0px 0px inset;
+}
+
+button, .btn-xs, .toggle-sm {
+  border-radius: 6px;
+  transition: opacity 0.15s;
+}
+button:hover, .btn-xs:hover {
+  opacity: 0.7;
+}
+
+.sidebar-item.active {
+  background: var(--surface2);
+  border-color: rgba(255,99,99,0.4);
+}

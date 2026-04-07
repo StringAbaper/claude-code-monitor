@@ -340,10 +340,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   .detail-actions button{flex:1}
 }
 </style>
+<link id="skin-css" rel="stylesheet" href="">
 </head>
 <body>
 <div id="root"></div>
-<script>document.documentElement.setAttribute('data-theme',localStorage.getItem('cm-theme')||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'))</script>
+<script>
+document.documentElement.setAttribute('data-theme',localStorage.getItem('cm-theme')||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
+(function(){var s=localStorage.getItem('cm-skin')||'default';if(s!=='default')document.getElementById('skin-css').href='/skins/'+encodeURIComponent(s)+'.css'})();
+</script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
@@ -445,7 +449,7 @@ function ApprovalCard({a,onDecide}){
 }
 
 // ── Settings Panel ──
-function SettingsPanel({settings, sessions, machineNames, serverHostname, authToken, updateInfo}){
+function SettingsPanel({settings, sessions, machineNames, serverHostname, authToken, updateInfo, uiSkin, setUiSkin}){
   const authH={'Authorization':'Bearer '+authToken,'Content-Type':'application/json'};
   const save=(field,val)=>{
     fetch('/api/settings',{method:'POST',headers:authH,body:JSON.stringify({[field]:val})}).catch(()=>{});
@@ -551,6 +555,23 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
         <div className="setting-desc" style=${{marginTop:'8px'}}>Or manually: clone this repo on the remote machine and run:<br/>
           <code style=${{fontSize:'11px',color:'var(--purple)'}}>node install-hooks.js --url=${location.protocol+'//'+location.host} --token=${authToken}</code>
         </div>
+      </div>
+    </div>
+
+    <div className="settings-section">
+      <div className="settings-section-title">Appearance</div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">UI skin</div>
+          <div className="setting-desc">Visual theme. Layers on top of dark/light mode.</div>
+        </div>
+        <select value=${uiSkin} onChange=${e=>setUiSkin(e.target.value)}
+          style=${{background:'var(--surface2)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:'4px',padding:'4px 8px',fontSize:'12px'}}>
+          <option value="default">Default</option>
+          <option value="linear">Linear</option>
+          <option value="sentry">Sentry</option>
+          <option value="raycast">Raycast</option>
+        </select>
       </div>
     </div>
 
@@ -883,6 +904,15 @@ function App(){
   const[updateInfo,setUpdateInfo]=useState({});
   const[anomalyState,setAnomalyState]=useState(null);
   const[anomalyToast,setAnomalyToast]=useState(null);
+  const[uiSkin,setUiSkinLocal]=useState(()=>localStorage.getItem('cm-skin')||'default');
+  const setUiSkin=useCallback(v=>{
+    if(!['default','linear','sentry','raycast'].includes(v))return;
+    setUiSkinLocal(v);
+    localStorage.setItem('cm-skin',v);
+    const link=document.getElementById('skin-css');
+    if(link)link.href=v==='default'?'':'/skins/'+v+'.css';
+    fetch('/api/settings',{method:'POST',headers:{'Authorization':'Bearer '+(localStorage.getItem('cm-token')||''),'Content-Type':'application/json'},body:JSON.stringify({uiSkin:v})}).catch(()=>{});
+  },[]);
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
 
@@ -926,7 +956,7 @@ function App(){
       const d=JSON.parse(e.data);
       if(d.sessions)setSessions(d.sessions);
       if(d.pendingApprovals)setPending(d.pendingApprovals);
-      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled);setSettings(d.settings)}
+      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled);setSettings(d.settings);if(d.settings.uiSkin&&d.settings.uiSkin!==uiSkin&&['default','linear','sentry','raycast'].includes(d.settings.uiSkin)){setUiSkinLocal(d.settings.uiSkin);localStorage.setItem('cm-skin',d.settings.uiSkin);const link=document.getElementById('skin-css');if(link)link.href=d.settings.uiSkin==='default'?'':'/skins/'+d.settings.uiSkin+'.css'}}
       if(d.machineNames)setMNames(d.machineNames);
       if(d.serverHostname)setServerHost(d.serverHostname);
       if(d.updateState)setUpdateInfo(d.updateState);
@@ -1096,6 +1126,8 @@ function App(){
             serverHostname=${serverHost}
             authToken=${authToken}
             updateInfo=${updateInfo}
+            uiSkin=${uiSkin}
+            setUiSkin=${setUiSkin}
           />`
           :html`<${DetailPanel}
             s=${selected}

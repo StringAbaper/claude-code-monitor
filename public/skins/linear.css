@@ -1,0 +1,72 @@
+/* Linear.app skin — dark-mode-first, indigo-violet accent, ultra-thin borders */
+@import url('https://rsms.me/inter/inter.css');
+
+:root, [data-theme="dark"] {
+  --bg: #08090a;
+  --surface: #0f1011;
+  --surface2: #191a1b;
+  --surface-hover: #28282c;
+  --border: rgba(255,255,255,0.08);
+  --border-light: rgba(255,255,255,0.12);
+  --text: #f7f8f8;
+  --text-muted: #8a8f98;
+  --text-dim: #62666d;
+  --green: #10b981;
+  --green-bg: rgba(16,185,129,0.10);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245,158,11,0.08);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.08);
+  --blue: #7170ff;
+  --blue-bg: rgba(113,112,255,0.10);
+  --gray: #62666d;
+  --purple: #5e6ad2;
+  --purple-bg: rgba(94,106,210,0.12);
+}
+
+[data-theme="light"] {
+  --bg: #f7f8f8;
+  --surface: #ffffff;
+  --surface2: #f3f4f5;
+  --surface-hover: #e6e6e6;
+  --border: #e6e6e6;
+  --border-light: #d0d6e0;
+  --text: #08090a;
+  --text-muted: #62666d;
+  --text-dim: #8a8f98;
+  --blue: #5e6ad2;
+  --purple: #5e6ad2;
+}
+
+html, body, .app {
+  font-family: 'Inter var', 'Inter', -apple-system, system-ui, 'SF Pro Display', sans-serif;
+  font-feature-settings: "cv01", "ss03";
+  font-weight: 400;
+}
+
+.logo, .machine-name, .settings-section-title {
+  font-weight: 510;
+  letter-spacing: -0.01em;
+}
+
+.sidebar-item, .approval-card, .anomaly-toast, .burn-pill {
+  border-radius: 8px;
+}
+.btn-xs, .toggle-sm, button {
+  border-radius: 6px;
+}
+
+.sidebar-item.active {
+  background: var(--purple-bg);
+  border-color: var(--purple);
+}
+
+/* subtler borders, Linear loves moonlight wireframes */
+.sidebar-item, .panel, .approval-card {
+  border-color: rgba(255,255,255,0.05);
+}
+[data-theme="light"] .sidebar-item,
+[data-theme="light"] .panel,
+[data-theme="light"] .approval-card {
+  border-color: #e6e6e6;
+}

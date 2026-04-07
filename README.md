@@ -9,7 +9,7 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 - **Multi-session monitoring** — See all active Claude Code sessions in one dashboard, across IDEs and terminals
 - **Remote approval** — Approve or deny tool permission requests directly from the dashboard without switching windows
 - **Auto-approve** — Optionally auto-approve all permission requests (with safety confirmation)
-- **Window focus** — Jump to the session's IDE or terminal window from the dashboard (cross-platform)
+- **Window focus** — Jump to the session's IDE or terminal window from the dashboard (cross-platform, **local-only**: button only appears when the dashboard is opened on the same machine that runs the session)
 - **Token usage** — Track input/output/cache token usage per session
 - **Light/Dark mode** — Toggle theme with OS preference auto-detection
 - **LAN support** — Monitor Claude Code sessions from other machines on the same network

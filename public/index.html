@@ -24,6 +24,7 @@
   --blue: #3b82f6;
   --blue-bg: rgba(59,130,246,0.07);
   --gray: #6b7280;
+  --cyan: #06b6d4;
   --purple: #8b5cf6;
   --purple-bg: rgba(139,92,246,0.07);
 }
@@ -46,6 +47,7 @@
   --blue: #2563eb;
   --blue-bg: rgba(37,99,235,0.07);
   --gray: #9ca3af;
+  --cyan: #0891b2;
   --purple: #7c3aed;
   --purple-bg: rgba(124,58,237,0.07);
 }
@@ -657,13 +659,13 @@ function TokenChart({history, sessionId, theme}){
 
     const cs=getComputedStyle(document.documentElement);
     const v=k=>cs.getPropertyValue(k).trim();
-    const dim=v('--text-dim'),brd=v('--border'),blue=v('--blue'),green=v('--green'),gray=v('--gray'),amber=v('--amber');
+    const dim=v('--text-dim'),brd=v('--border'),blue=v('--blue'),green=v('--green'),amber=v('--amber'),cyan=v('--cyan')||'#06b6d4';
 
     const labels=history.map(h=>clockTime(h.time));
     const ds=[
       {label:'Input',   data:history.map(h=>h.input),      borderColor:blue, backgroundColor:blue+'18',  fill:true},
       {label:'Output',  data:history.map(h=>h.output),     borderColor:green,backgroundColor:green+'18', fill:true},
-      {label:'Cached',  data:history.map(h=>h.cached),     borderColor:gray, backgroundColor:gray+'10',  fill:true},
+      {label:'Cached',  data:history.map(h=>h.cached),     borderColor:cyan, backgroundColor:cyan+'18',  fill:true},
       {label:'Cache-W', data:history.map(h=>h.cacheWrite), borderColor:amber,backgroundColor:amber+'10', fill:true},
     ];
     ds.forEach(d=>Object.assign(d,{tension:.35,pointRadius:0,pointHitRadius:8,borderWidth:1.5}));
@@ -795,7 +797,9 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
         <button className="btn-back" onClick=${onBack}>Back</button>
         <div className="detail-title">${s.project}</div>
         <div className="detail-actions">
-          <button className="btn-focus" onClick=${()=>onFocus(s.id)} disabled=${!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||s.hostname!==serverHostname} title=${!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'Only available on local machine':s.hostname!==serverHostname?'Session is on a remote machine':'Focus the session window'}>Focus Window</button>
+          ${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&s.hostname===serverHostname&&html`
+            <button className="btn-focus" onClick=${()=>onFocus(s.id)} title="Focus the session window">Focus Window</button>
+          `}
           <button className="btn-remove" onClick=${()=>onRemove(s.id)}>Remove</button>
         </div>
       </div>

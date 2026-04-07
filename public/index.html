@@ -64,6 +64,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-theme:hover{color:var(--text);border-color:var(--border-light)}
 .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--gray)}
 .conn-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+.burn-pill{display:flex;align-items:center;gap:5px;padding:5px 9px;margin:6px 12px 0;border-radius:6px;font-size:11px;background:var(--bg-elev);border:1px solid var(--border);color:var(--text-muted)}
+.burn-pill strong{color:var(--text)}
+.burn-pill .burn-pct{margin-left:2px}
+.burn-pill .peak-tag{margin-left:auto;font-size:9px;font-weight:700;color:var(--amber);border:1px solid var(--amber);padding:1px 4px;border-radius:3px}
+.burn-yellow{border-color:var(--amber);background:rgba(245,158,11,.08)}
+.burn-orange{border-color:#fb923c;background:rgba(251,146,60,.13);color:#fb923c}
+.burn-orange strong{color:#fb923c}
+.burn-red{border-color:var(--red);background:rgba(239,68,68,.18);color:var(--red);animation:burnPulse 1.5s ease-in-out infinite}
+.burn-red strong{color:var(--red)}
+@keyframes burnPulse{0%,100%{opacity:1}50%{opacity:.6}}
+.anomaly-toast{margin:6px 12px 0;padding:8px 10px;border-radius:6px;font-size:12px;background:rgba(239,68,68,.15);border:1px solid var(--red);color:var(--red);animation:fadeIn .3s}
+.anomaly-toast.sev-info{background:rgba(59,130,246,.12);border-color:var(--blue);color:var(--blue)}
+.anomaly-toast.sev-warn{background:rgba(245,158,11,.13);border-color:var(--amber);color:var(--amber)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
 .sidebar-toolbar{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center}
 .toggle-sm{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none}
@@ -554,6 +568,18 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
           <div className="toggle-thumb"></div>
         </label>
       </div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Update channel</div>
+          <div className="setting-desc">Beta pulls from the <code>beta</code> branch (cutting-edge, may break)</div>
+        </div>
+        <select value=${settings.updateChannel||'stable'}
+          onChange=${e=>save('updateChannel',e.target.value)}
+          style=${{background:'var(--bg-elev)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:'4px',padding:'4px 8px',fontSize:'12px'}}>
+          <option value="stable">Stable (master)</option>
+          <option value="beta">Beta</option>
+        </select>
+      </div>
       <div className="setting-row" style=${{flexDirection:'column',alignItems:'stretch',gap:'8px'}}>
         <div style=${{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <div>
@@ -855,6 +881,8 @@ function App(){
   const[settings,setSettings]=useState({stoppedCleanupMinutes:1440,showTokenChart:true,autoArchiveStopped:false});
   const[showArchived,setShowArchived]=useState(false);
   const[updateInfo,setUpdateInfo]=useState({});
+  const[anomalyState,setAnomalyState]=useState(null);
+  const[anomalyToast,setAnomalyToast]=useState(null);
   const wsRef=useRef(null);
   const reconnRef=useRef(null);
 
@@ -902,6 +930,14 @@ function App(){
       if(d.machineNames)setMNames(d.machineNames);
       if(d.serverHostname)setServerHost(d.serverHostname);
       if(d.updateState)setUpdateInfo(d.updateState);
+      if(d.anomalyState)setAnomalyState(d.anomalyState);
+      if(d.anomalyAlerts&&d.anomalyAlerts.length){
+        const a=d.anomalyAlerts[0];
+        setAnomalyToast({id:a.id,severity:a.severity,sessionId:a.sessionId,time:Date.now()});
+        if(sound)playAlert();
+        notify('Token Anomaly: '+a.id, 'Session '+a.sessionId.slice(0,8));
+        setTimeout(()=>setAnomalyToast(null),8000);
+      }
       if(d.alert){
         if(d.alert.type==='complete'){
           if(sound)playComplete();
@@ -969,6 +1005,20 @@ function App(){
             <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
           </div>
         </div>
+        ${anomalyState&&anomalyState.enabled&&html`
+          <div className=${`burn-pill burn-${anomalyState.level}`} title=${`5h burn rate vs plan limit. burn10m=${Math.round(anomalyState.burn10m)} tok/min, burn1h=${Math.round(anomalyState.burn1h)} tok/min${anomalyState.isPeakHour?' (peak hours)':''}`}>
+            <span>5h:</span>
+            <strong>${(anomalyState.window5hTotal/1e6).toFixed(2)}M</strong>
+            <span>/ ${(anomalyState.window5hLimitTokens/1e6).toFixed(0)}M</span>
+            <span className="burn-pct">(${Math.round(anomalyState.window5hRatio*100)}%)</span>
+            ${anomalyState.isPeakHour&&html`<span className="peak-tag">PEAK</span>`}
+          </div>
+        `}
+        ${anomalyToast&&html`
+          <div className=${`anomaly-toast sev-${anomalyToast.severity}`}>
+            ⚠ Token anomaly: <strong>${anomalyToast.id}</strong>
+          </div>
+        `}
 
         <div className="sidebar-toolbar" style=${{flexWrap:'wrap'}}>
           <label className=${`toggle-sm ${remoteApproval?'active':''}`}>

@@ -97,7 +97,9 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .conn-dot{width:7px;height:7px;border-radius:50%}
 .conn-dot.offline{background:var(--red);box-shadow:0 0 6px var(--red);animation:pulseDot 1.5s ease-in-out infinite}
 @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:0.4}}
-.burn-pill{display:flex;align-items:center;gap:6px;padding:7px 11px;margin:10px 14px 4px;border-radius:8px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-variant-numeric:tabular-nums}
+.burn-pill{display:flex;flex-direction:column;gap:3px;padding:8px 12px;margin:10px 14px 4px;border-radius:10px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-variant-numeric:tabular-nums}
+.burn-pill-row{display:flex;align-items:center;gap:6px}
+.burn-pill-reset{font-size:10px;color:var(--text-dim);padding-left:2px}
 .burn-pill strong{color:var(--text)}
 .burn-pill .burn-pct{margin-left:2px}
 .burn-pill .peak-tag{margin-left:auto;font-size:9px;font-weight:700;color:var(--amber);border:1px solid var(--amber);padding:1px 4px;border-radius:3px}
@@ -126,23 +128,24 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .btn-xs.danger:hover{background:rgba(239,68,68,0.1);border-color:var(--red)}
 .sidebar-archived-actions{display:flex;gap:8px;justify-content:center;padding:8px 16px;flex-wrap:wrap}
 
-.sidebar-list{flex:1;overflow-y:auto}
+.sidebar-list{flex:1;overflow-y:auto;padding:10px}
 .sidebar-empty{padding:40px 16px;text-align:center;color:var(--text-dim);font-size:13px}
 
 /* Machine Group */
-.machine-group{border-bottom:1px solid var(--border)}
-.machine-header{padding:8px 14px 4px;display:flex;align-items:center;gap:6px;background:var(--surface2)}
-.machine-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);cursor:pointer;border:none;background:none;padding:1px 4px;border-radius:3px;font-family:inherit}
+.machine-group{margin-bottom:10px}
+.machine-header{padding:4px 6px 6px;display:flex;align-items:center;gap:6px}
+.machine-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);cursor:pointer;border:none;background:none;padding:1px 4px;border-radius:3px;font-family:inherit}
 .machine-name:hover{color:var(--text);background:var(--surface-hover)}
 .machine-name:focus{outline:1px solid var(--purple);color:var(--text)}
 .machine-dot{width:5px;height:5px;border-radius:50%;background:var(--text-dim);flex-shrink:0}
 .machine-count{font-size:10px;color:var(--text-dim);margin-left:auto}
 
-/* Sidebar Item */
-.si{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;border-left:3px solid transparent}
-.si:hover{background:var(--surface-hover)}
-.si.selected{background:var(--purple-bg);border-left-color:var(--purple)}
-.si.has-approval{background:var(--amber-bg)}
+/* Sidebar Item — rounded card style */
+.si{padding:11px 13px;margin-bottom:6px;border:1px solid var(--border);background:var(--surface);border-radius:10px;cursor:pointer;transition:all var(--dur) var(--ease);position:relative;overflow:hidden}
+.si:hover{background:var(--surface-hover);border-color:var(--border-light);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.si.selected{background:var(--purple-bg);border-color:var(--purple)}
+.si.selected:hover{transform:none}
+.si.has-approval{background:var(--amber-bg);border-color:var(--amber)}
 .si-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
 .si-name{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -401,6 +404,7 @@ function duration(ms){const m=ms/6e4|0;if(m<60)return m+'m';return(m/60|0)+'h '+
 
 const STATUS={working:'Working',waiting_permission:'Permission',idle:'Idle',stopped:'Stopped',unknown:'Unknown'};
 function fmtTokens(n){if(!n)return'0';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(n)}
+function fmtCountdown(ms){if(ms==null||ms<0)return'';const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>0)return h+'h '+m+'m';if(m>0)return m+'m';return Math.max(1,s)+'s'}
 function totalTokens(u){return(u?.input_tokens||0)+(u?.output_tokens||0)+(u?.cache_read_input_tokens||0)+(u?.cache_creation_input_tokens||0)}
 
 let audioCtx;
@@ -1096,13 +1100,21 @@ function App(){
           </div>
         </div>
         ${settings.showBurnPill!==false&&anomalyState&&anomalyState.enabled&&html`
-          <div className=${`burn-pill burn-${anomalyState.level}`} title=${`5h burn rate vs plan limit. burn10m=${Math.round(anomalyState.burn10m)} tok/min, burn1h=${Math.round(anomalyState.burn1h)} tok/min${anomalyState.isPeakHour?' (peak hours)':''}\n\nBETA: estimate is approximate and not yet aligned with Anthropic's official usage numbers.`}>
-            <span className="beta-tag">BETA</span>
-            <span>5h:</span>
-            <strong>${(anomalyState.window5hTotal/1e6).toFixed(2)}M</strong>
-            <span>/ ${(anomalyState.window5hLimitTokens/1e6).toFixed(0)}M</span>
-            <span className="burn-pct">(${Math.round(anomalyState.window5hRatio*100)}%)</span>
-            ${anomalyState.isPeakHour&&html`<span className="peak-tag">PEAK</span>`}
+          <div className=${`burn-pill burn-${anomalyState.level}`} title=${`5h session window. burn10m=${Math.round(anomalyState.burn10m)} tok/min, burn1h=${Math.round(anomalyState.burn1h)} tok/min${anomalyState.isPeakHour?' (peak hours)':''}\n\nBETA: estimate is approximate and not yet aligned with Anthropic's official usage numbers.`}>
+            <div className="burn-pill-row">
+              <span className="beta-tag">BETA</span>
+              <span>5h:</span>
+              <strong>${(anomalyState.window5hTotal/1e6).toFixed(2)}M</strong>
+              <span>/ ${(anomalyState.window5hLimitTokens/1e6).toFixed(0)}M</span>
+              <span className="burn-pct">(${Math.round(anomalyState.window5hRatio*100)}%)</span>
+              ${anomalyState.isPeakHour&&html`<span className="peak-tag">PEAK</span>`}
+            </div>
+            ${anomalyState.windowEnd!=null&&html`
+              <div className="burn-pill-reset">Resets in ${fmtCountdown(anomalyState.windowEnd-Date.now())}</div>
+            `}
+            ${anomalyState.windowEnd==null&&html`
+              <div className="burn-pill-reset">Window opens on next message</div>
+            `}
           </div>
         `}
         ${anomalyToast&&html`

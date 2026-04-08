@@ -58,7 +58,16 @@ app.use((_req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "1mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+// Serve dashboard with no-cache so HTML/JS/CSS updates are picked up
+// immediately after a server restart instead of waiting for the user
+// to hard-refresh.
+app.use(express.static(path.join(__dirname, "public"), {
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  },
+}));
 
 let server;
 if (USE_HTTPS) {

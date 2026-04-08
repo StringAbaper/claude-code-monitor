@@ -96,10 +96,12 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .settings,.detail{animation:fadeUp var(--dur-slow) var(--ease)}
 .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--gray)}
 .conn-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
-.burn-pill{display:flex;align-items:center;gap:5px;padding:5px 9px;margin:6px 12px 0;border-radius:6px;font-size:11px;background:var(--bg-elev);border:1px solid var(--border);color:var(--text-muted)}
+.burn-pill{display:flex;align-items:center;gap:6px;padding:7px 11px;margin:10px 14px 4px;border-radius:8px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-variant-numeric:tabular-nums}
 .burn-pill strong{color:var(--text)}
 .burn-pill .burn-pct{margin-left:2px}
 .burn-pill .peak-tag{margin-left:auto;font-size:9px;font-weight:700;color:var(--amber);border:1px solid var(--amber);padding:1px 4px;border-radius:3px}
+.burn-pill .beta-tag{font-size:8px;font-weight:700;color:var(--purple);background:var(--purple-bg);padding:2px 5px;border-radius:3px;letter-spacing:0.6px;line-height:1}
+.burn-pill strong{font-size:12px;font-weight:600;color:var(--text)}
 .burn-yellow{border-color:var(--amber);background:rgba(245,158,11,.08)}
 .burn-orange{border-color:#fb923c;background:rgba(251,146,60,.13);color:#fb923c}
 .burn-orange strong{color:#fb923c}
@@ -111,7 +113,7 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .anomaly-toast.sev-warn{background:rgba(245,158,11,.13);border-color:var(--amber);color:var(--amber)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
-.sidebar-toolbar{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center}
+.sidebar-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
 .toggle-sm{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none}
 .toggle-sm input{accent-color:var(--purple);width:13px;height:13px}
 .toggle-sm.active{color:var(--amber)}
@@ -522,6 +524,18 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
         <label className="toggle">
           <input type="checkbox" checked=${settings.showTokenChart!==false}
             onChange=${e=>save('showTokenChart',e.target.checked)}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">5h Burn Pill <span style=${{fontSize:'9px',fontWeight:700,color:'var(--purple)',border:'1px solid var(--purple)',padding:'1px 4px',borderRadius:'3px',marginLeft:'6px',letterSpacing:'0.5px'}}>BETA</span></div>
+          <div className="setting-desc">Show the 5h rolling burn estimate in the sidebar header. Estimate is approximate — not yet aligned with Anthropic's official usage numbers.</div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${settings.showBurnPill!==false}
+            onChange=${e=>save('showBurnPill',e.target.checked)}/>
           <div className="toggle-track"></div>
           <div className="toggle-thumb"></div>
         </label>
@@ -1080,8 +1094,9 @@ function App(){
             <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
           </div>
         </div>
-        ${anomalyState&&anomalyState.enabled&&html`
-          <div className=${`burn-pill burn-${anomalyState.level}`} title=${`5h burn rate vs plan limit. burn10m=${Math.round(anomalyState.burn10m)} tok/min, burn1h=${Math.round(anomalyState.burn1h)} tok/min${anomalyState.isPeakHour?' (peak hours)':''}`}>
+        ${settings.showBurnPill!==false&&anomalyState&&anomalyState.enabled&&html`
+          <div className=${`burn-pill burn-${anomalyState.level}`} title=${`5h burn rate vs plan limit. burn10m=${Math.round(anomalyState.burn10m)} tok/min, burn1h=${Math.round(anomalyState.burn1h)} tok/min${anomalyState.isPeakHour?' (peak hours)':''}\n\nBETA: estimate is approximate and not yet aligned with Anthropic's official usage numbers.`}>
+            <span className="beta-tag">BETA</span>
             <span>5h:</span>
             <strong>${(anomalyState.window5hTotal/1e6).toFixed(2)}M</strong>
             <span>/ ${(anomalyState.window5hLimitTokens/1e6).toFixed(0)}M</span>
@@ -1105,9 +1120,9 @@ function App(){
             Sound
           </label>
           ${remoteApproval&&html`
-            <label className=${`toggle-sm ${autoApprove?'danger':''}`} title="Automatically approve all permission requests">
+            <label className=${`toggle-sm ${autoApprove?'danger':''}`} title=${autoApprove?'⚠ All permissions auto-approved':'Automatically approve all permission requests'}>
               <input type="checkbox" checked=${autoApprove} onChange=${toggleAA}/>
-              Auto-Approve ${autoApprove?'(⚠ Dangerous)':''}
+              Auto-Approve
             </label>
           `}
         </div>

@@ -195,7 +195,8 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 /* Detail Panel — card layout */
 .detail{flex:1;display:flex;flex-direction:column;padding:18px;gap:14px;overflow-y:auto;background:var(--bg)}
 .detail-header{display:flex;justify-content:space-between;align-items:center;padding:0 6px}
-.detail-title{font-size:20px;font-weight:700}
+.detail-title{font-size:20px;font-weight:700;cursor:text}
+.detail-title-input{font:inherit;font-weight:700;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;outline:none;min-width:200px;max-width:100%}
 .detail-actions{display:flex;gap:6px}
 .btn-focus{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,0.2);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;transition:all var(--dur) var(--ease)}
 .btn-focus:hover{background:rgba(59,130,246,0.15);transform:translateY(-1px)}
@@ -845,7 +846,12 @@ function TokenChart({history, sessionId, theme}){
 }
 
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machineNames, theme, serverHostname, showTokenChart}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBack, machineNames, theme, serverHostname, showTokenChart}){
+  const [editingTitle,setEditingTitle]=useState(false);
+  const [titleDraft,setTitleDraft]=useState('');
+  useEffect(()=>{setEditingTitle(false)},[s&&s.id]);
+  const startEdit=()=>{if(!s)return;setTitleDraft(s.title||s.project||'');setEditingTitle(true)};
+  const commitEdit=()=>{if(!s)return;const v=titleDraft.trim();onRename&&onRename(s.id,v);setEditingTitle(false)};
   if(!s) return html`
     <div className="main-empty">
       <p>Select a session from the left panel to view details.<br/><br/>
@@ -859,7 +865,13 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
   return html`
     <div className="detail">
       <div className="detail-header">
-        <div className="detail-title" title=${s.title||s.project}>${s.title||s.project}</div>
+        ${editingTitle
+          ?html`<input className="detail-title detail-title-input" autoFocus value=${titleDraft}
+              onInput=${e=>setTitleDraft(e.target.value)}
+              onBlur=${commitEdit}
+              onKeyDown=${e=>{if(e.key==='Enter')commitEdit();else if(e.key==='Escape')setEditingTitle(false)}}
+              maxLength=${120}/>`
+          :html`<div className="detail-title" title="Click to rename" onClick=${startEdit}>${s.title||s.project}</div>`}
         <div className="detail-actions">
           <button className="btn-back" onClick=${onBack}>Back</button>
           ${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&s.hostname===serverHostname&&html`
@@ -1071,6 +1083,7 @@ function App(){
   const toggleAA=useCallback(()=>{const v=!autoApprove;if(v&&!confirm('⚠️ This will automatically ALLOW all permission requests without review. Are you sure?'))return;setAutoApprove(v);fetch('/api/settings',{method:'POST',headers:authH,body:JSON.stringify({autoApproveEnabled:v})}).catch(()=>{})},[autoApprove,authToken]);
   const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:authH,body:JSON.stringify({decision:dec})}).catch(()=>{})},[authToken]);
   const renameMachine=useCallback((hostname,name)=>{fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:authH,body:JSON.stringify({name})}).catch(()=>{})},[authToken]);
+  const renameSession=useCallback((id,title)=>{fetch('/api/sessions/'+id+'/title',{method:'POST',headers:authH,body:JSON.stringify({title})}).catch(()=>{})},[authToken]);
 
   // Auth guards (after all hooks)
   if(!authChecked)return html`<div className="login-screen"><div style=${{color:'var(--text-muted)'}}>Loading...</div></div>`;
@@ -1219,6 +1232,7 @@ function App(){
             onDecide=${decideApproval}
             onFocus=${focusSession}
             onRemove=${removeSession}
+            onRename=${renameSession}
             onBack=${()=>setMobileDetail(false)}
             machineNames=${mNames}
             theme=${theme}

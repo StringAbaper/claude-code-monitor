@@ -170,9 +170,19 @@ Make sure port 7888 is open on the server machine:
 All API endpoints and WebSocket connections require a valid API token. The dashboard requires a password to log in.
 
 - **API Token** — Auto-generated UUID on first server start, stored in `data/config.json`
-- **Dashboard Password** — Set on first browser visit, stored as SHA-256 hash (never plaintext)
+- **Dashboard Password** — Set on first browser visit, stored as a PBKDF2-SHA512 hash with 100k iterations (never plaintext)
 - **hook-handler** — Reads token from `CLAUDE_MONITOR_TOKEN` env var (baked in by `install-hooks.js`)
 - **WebSocket** — Token passed as query parameter on connection
+
+### Forgot the dashboard password?
+
+Run on the server machine:
+
+```bash
+npm run reset-password
+```
+
+This clears `dashboardPasswordHash` from `data/config.json`. Restart the server and visit the dashboard — you'll be prompted to set a new password. API token, sessions, and all other settings are preserved.
 
 ### HTTPS
 

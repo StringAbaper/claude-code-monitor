@@ -190,40 +190,41 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .ab-timer{font-size:11px;color:var(--text-muted);font-family:'Cascadia Code',monospace}
 .ab-timer.warn{color:var(--amber)}.ab-timer.expired{color:var(--red)}
 
-/* Detail Panel */
-.detail{flex:1}
-.detail-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start}
+/* Detail Panel — card layout */
+.detail{flex:1;display:flex;flex-direction:column;padding:18px;gap:14px;overflow-y:auto;background:var(--bg)}
+.detail-header{display:flex;justify-content:space-between;align-items:center;padding:0 6px}
 .detail-title{font-size:20px;font-weight:700}
 .detail-actions{display:flex;gap:6px}
-.btn-focus{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,0.2);padding:5px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s}
-.btn-focus:hover{background:rgba(59,130,246,0.15)}
-.btn-remove{background:none;border:1px solid var(--border);color:var(--text-dim);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.btn-focus{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,0.2);padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;transition:all var(--dur) var(--ease)}
+.btn-focus:hover{background:rgba(59,130,246,0.15);transform:translateY(-1px)}
+.btn-remove{background:var(--surface);border:1px solid var(--border);color:var(--text-dim);padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer}
 .btn-remove:hover{color:var(--red);border-color:rgba(239,68,68,0.3)}
 
-.detail-info{padding:16px 24px;display:grid;grid-template-columns:100px 1fr;gap:6px 16px;font-size:13px;border-bottom:1px solid var(--border)}
+.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;transition:border-color var(--dur) var(--ease)}
+.detail-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:10px}
+
+.detail-info{display:grid;grid-template-columns:100px 1fr;gap:8px 16px;font-size:13px}
 .detail-info dt{color:var(--text-muted)}
 .detail-info dd{color:var(--text);font-family:'Cascadia Code','Consolas',monospace;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .usage-row{display:flex;gap:10px;flex-wrap:wrap}
 .usage-in{color:var(--blue)}
 .usage-out{color:var(--green)}
-.usage-cache{color:var(--text-dim)}
+.usage-cache{color:var(--cyan,#06b6d4)}
 
-.detail-top{display:flex;border-bottom:1px solid var(--border)}
-.detail-top .detail-info{border-bottom:none;flex:0 0 auto;min-width:280px}
-.detail-chart{flex:1;min-width:180px;padding:12px 16px;border-left:1px solid var(--border);position:relative}
+.detail-top{display:flex;gap:18px;align-items:flex-start}
+.detail-top .detail-info{flex:0 0 auto;min-width:280px}
+.detail-chart{flex:1;min-width:180px;position:relative}
 .detail-chart-empty{color:var(--text-dim);font-size:12px;display:flex;align-items:center;justify-content:center;height:100%;min-height:100px}
 
-.detail-activity{padding:16px 24px;border-bottom:1px solid var(--border)}
-.detail-activity-label{font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600;margin-bottom:6px}
 .detail-activity-text{font-size:14px;color:var(--text)}
 .detail-activity-text .tool{color:var(--purple);font-weight:600}
 
-/* Event Log */
-.event-section{flex:1;display:flex;flex-direction:column;min-height:0}
-.event-header{padding:12px 24px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);font-weight:600}
-.event-list{flex:1;overflow-y:auto;padding-bottom:20px}
-.ev{padding:5px 24px;font-size:12px;display:flex;gap:12px;font-family:'Cascadia Code','Consolas',monospace;align-items:center}
-.ev:hover{background:var(--surface)}
+/* Event Log — inside a card */
+.event-card{flex:1;display:flex;flex-direction:column;min-height:0;padding:14px 4px 14px 18px}
+.event-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:8px;padding-right:14px}
+.event-list{flex:1;overflow-y:auto;padding-right:14px;margin-right:4px}
+.ev{padding:5px 0 5px 0;font-size:12px;display:flex;gap:12px;font-family:'Cascadia Code','Consolas',monospace;align-items:center;border-radius:6px}
+.ev:hover{background:var(--surface-hover);padding-left:8px;padding-right:8px}
 .ev-time{color:var(--text-dim);white-space:nowrap;min-width:60px}
 .ev-type{color:var(--purple);min-width:90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ev-detail{color:var(--text-muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -233,11 +234,11 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .ev-tag.user-deny{background:rgba(239,68,68,0.12);color:var(--red)}
 .ev-tag.pending{background:rgba(245,158,11,0.12);color:var(--amber);animation:blink 1.2s ease-in-out infinite}
 .ev-tag.complete{background:rgba(139,92,246,0.12);color:var(--purple)}
-.ev.ev-auto{border-left:2px solid var(--green);padding-left:22px}
-.ev.ev-user-allow{border-left:2px solid var(--blue);padding-left:22px}
-.ev.ev-user-deny{border-left:2px solid var(--red);padding-left:22px}
-.ev.ev-pending{border-left:2px solid var(--amber);padding-left:22px}
-.ev.ev-complete{border-left:2px solid var(--purple);padding-left:22px}
+.ev.ev-auto{border-left:2px solid var(--green);padding-left:8px}
+.ev.ev-user-allow{border-left:2px solid var(--blue);padding-left:8px}
+.ev.ev-user-deny{border-left:2px solid var(--red);padding-left:8px}
+.ev.ev-pending{border-left:2px solid var(--amber);padding-left:8px}
+.ev.ev-complete{border-left:2px solid var(--purple);padding-left:8px}
 
 /* ── Login Screen ── */
 .login-screen{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)}
@@ -854,9 +855,9 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
   return html`
     <div className="detail">
       <div className="detail-header">
-        <button className="btn-back" onClick=${onBack}>Back</button>
         <div className="detail-title">${s.project}</div>
         <div className="detail-actions">
+          <button className="btn-back" onClick=${onBack}>Back</button>
           ${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&s.hostname===serverHostname&&html`
             <button className="btn-focus" onClick=${()=>onFocus(s.id)} title="Focus the session window">Focus Window</button>
           `}
@@ -864,8 +865,29 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
         </div>
       </div>
 
-      ${showTokenChart?html`
-        <div className="detail-top">
+      <div className="detail-card">
+        ${showTokenChart?html`
+          <div className="detail-top">
+            <dl className="detail-info">
+              <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
+              <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
+              <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
+              <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
+              <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
+              <dt>Events</dt><dd>${s.eventCount}</dd>
+              ${totalTokens(s.usage)>0&&html`
+                <dt>Tokens</dt>
+                <dd className="usage-row">
+                  <span className="usage-in" title="Input tokens">${fmtTokens(s.usage.input_tokens)} in</span>
+                  <span className="usage-out" title="Output tokens">${fmtTokens(s.usage.output_tokens)} out</span>
+                  ${s.usage.cache_read_input_tokens>0&&html`<span className="usage-cache" title="Cache read">${fmtTokens(s.usage.cache_read_input_tokens)} cached</span>`}
+                  ${s.usage.cache_creation_input_tokens>0&&html`<span className="usage-cache" title="Cache creation">${fmtTokens(s.usage.cache_creation_input_tokens)} cache-write</span>`}
+                </dd>
+              `}
+            </dl>
+            <${TokenChart} history=${s.usageHistory} sessionId=${s.id} theme=${theme}/>
+          </div>
+        `:html`
           <dl className="detail-info">
             <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
             <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
@@ -883,30 +905,11 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
               </dd>
             `}
           </dl>
-          <${TokenChart} history=${s.usageHistory} sessionId=${s.id} theme=${theme}/>
-        </div>
-      `:html`
-        <dl className="detail-info">
-          <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
-          <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
-          <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
-          <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
-          <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
-          <dt>Events</dt><dd>${s.eventCount}</dd>
-          ${totalTokens(s.usage)>0&&html`
-            <dt>Tokens</dt>
-            <dd className="usage-row">
-              <span className="usage-in" title="Input tokens">${fmtTokens(s.usage.input_tokens)} in</span>
-              <span className="usage-out" title="Output tokens">${fmtTokens(s.usage.output_tokens)} out</span>
-              ${s.usage.cache_read_input_tokens>0&&html`<span className="usage-cache" title="Cache read">${fmtTokens(s.usage.cache_read_input_tokens)} cached</span>`}
-              ${s.usage.cache_creation_input_tokens>0&&html`<span className="usage-cache" title="Cache creation">${fmtTokens(s.usage.cache_creation_input_tokens)} cache-write</span>`}
-            </dd>
-          `}
-        </dl>
-      `}
+        `}
+      </div>
 
-      <div className="detail-activity">
-        <div className="detail-activity-label">Current Activity</div>
+      <div className="detail-card">
+        <div className="detail-card-title">Current Activity</div>
         <div className="detail-activity-text">
           ${s.currentTool
             ? html`<span className="tool">${s.currentTool}</span> ${s.toolDetail||''}`
@@ -915,16 +918,16 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
       </div>
 
       ${sessionApprovals.length>0 && html`
-        <div className="approval-banner" style=${{borderTop:'1px solid rgba(245,158,11,0.2)'}}>
-          <div className="ab-title">Pending Approval</div>
+        <div className="detail-card" style=${{borderColor:'var(--amber)',background:'var(--amber-bg)'}}>
+          <div className="detail-card-title" style=${{color:'var(--amber)'}}>Pending Approval</div>
           <div className="ab-cards">
             ${sessionApprovals.map(a=>html`<${ApprovalCard} key=${a.id} a=${a} onDecide=${onDecide}/>`)}
           </div>
         </div>
       `}
 
-      <div className="event-section">
-        <div className="event-header">Recent Events (${s.recentEvents.length})</div>
+      <div className="detail-card event-card">
+        <div className="event-card-title">Recent Events (${s.recentEvents.length})</div>
         <div className="event-list">
           ${s.recentEvents.map((ev,i)=>{
             const ac=ev.approval;

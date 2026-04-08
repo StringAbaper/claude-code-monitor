@@ -147,7 +147,9 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .si.selected:hover{transform:none}
 .si.has-approval{background:var(--amber-bg);border-color:var(--amber)}
 .si-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
-.si-name{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-name{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.si-name>div:last-child{overflow:hidden;text-overflow:ellipsis}
+.si-project{font-size:10px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .si-dot.working{background:var(--green);box-shadow:0 0 4px var(--green)}
 .si-dot.waiting_permission{background:var(--amber);animation:blink 1.2s ease-in-out infinite}
@@ -450,12 +452,13 @@ function SidebarItem({s, selected, approvalCount, onClick}){
   return html`
     <div className=${`si ${selected?'selected':''} ${approvalCount>0?'has-approval':''}`} onClick=${onClick}>
       <div className="si-top">
-        <div className="si-name">
+        <div className="si-name" title=${s.title||s.project}>
           <div className=${`si-dot ${s.status}`}></div>
-          ${s.project}
+          ${s.title||s.project}
         </div>
         <span className=${`si-badge ${s.status}`}>${STATUS[s.status]||s.status}</span>
       </div>
+      ${s.title&&html`<div className="si-project">${s.project}</div>`}
       <div className="si-activity">${s.activityText||'No activity'}</div>
       <div className="si-meta">
         <span>${timeAgo(s.lastActivity)}</span>
@@ -856,7 +859,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
   return html`
     <div className="detail">
       <div className="detail-header">
-        <div className="detail-title">${s.project}</div>
+        <div className="detail-title" title=${s.title||s.project}>${s.title||s.project}</div>
         <div className="detail-actions">
           <button className="btn-back" onClick=${onBack}>Back</button>
           ${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&s.hostname===serverHostname&&html`
@@ -872,7 +875,8 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
             <dl className="detail-info">
               <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
               <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
-              <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
+              <dt>Project</dt><dd>${s.project}</dd>
+            <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
               <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
               <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
               <dt>Events</dt><dd>${s.eventCount}</dd>
@@ -892,6 +896,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onBack, machine
           <dl className="detail-info">
             <dt>Status</dt><dd>${STATUS[s.status]||s.status}</dd>
             <dt>Machine</dt><dd>${machineNames[s.hostname]||s.hostname||'local'}</dd>
+            <dt>Project</dt><dd>${s.project}</dd>
             <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
             <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
             <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>

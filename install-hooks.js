@@ -111,6 +111,10 @@ if (REMOVE) {
 try {
   fs.mkdirSync(path.dirname(SETTINGS_PATH), { recursive: true });
   fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
+  // Settings file contains the API token. Restrict to owner read/write only
+  // (POSIX). On Windows fs.chmodSync is a no-op but the file is in
+  // %USERPROFILE%\.claude which is already user-only by default ACL.
+  try { fs.chmodSync(SETTINGS_PATH, 0o600); } catch {}
   console.log("Settings saved to:", SETTINGS_PATH);
   console.log(
     "\nHook handler path:",

@@ -89,6 +89,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .toggle-sm.danger input{accent-color:var(--red)}
 .btn-xs{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer}
 .btn-xs:hover{color:var(--text);border-color:var(--border-light)}
+.btn-xs.danger{color:var(--red);border-color:rgba(239,68,68,0.3)}
+.btn-xs.danger:hover{background:rgba(239,68,68,0.1);border-color:var(--red)}
+.sidebar-archived-actions{display:flex;gap:8px;justify-content:center;padding:8px 16px;flex-wrap:wrap}
 
 .sidebar-list{flex:1;overflow-y:auto}
 .sidebar-empty{padding:40px 16px;text-align:center;color:var(--text-dim);font-size:13px}
@@ -479,25 +482,6 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
     <div className="settings-title">Settings</div>
 
     <div className="settings-section">
-      <div className="settings-section-title">Session Cleanup</div>
-      <div className="setting-row">
-        <div>
-          <div className="setting-label">Auto-remove stopped sessions</div>
-          <div className="setting-desc">Sessions will be deleted after this period of inactivity</div>
-        </div>
-        <div className="setting-control" style=${{display:'flex',alignItems:'center'}}>
-          <input className="setting-input" type="number" min="1" max="43200"
-            key=${'cleanup-'+settings.stoppedCleanupMinutes}
-            defaultValue=${settings.stoppedCleanupMinutes||1440}
-            onBlur=${e=>{const v=Math.max(1,Math.min(43200,Math.floor(Number(e.target.value)||1440)));e.target.value=v;save('stoppedCleanupMinutes',v)}}
-            onKeyDown=${e=>{if(e.key==='Enter')e.target.blur()}}
-          />
-          <span className="setting-unit">min${settings.stoppedCleanupMinutes>59?' ('+(settings.stoppedCleanupMinutes/60|0)+'h'+(settings.stoppedCleanupMinutes%60?(' '+(settings.stoppedCleanupMinutes%60)+'m'):'')+ ')':''}</span>
-        </div>
-      </div>
-    </div>
-
-    <div className="settings-section">
       <div className="settings-section-title">Display</div>
       <div className="setting-row">
         <div>
@@ -514,7 +498,7 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
       <div className="setting-row">
         <div>
           <div className="setting-label">Auto-archive stopped sessions</div>
-          <div className="setting-desc">Hide stopped sessions from sidebar (viewable via "archived" link)</div>
+          <div className="setting-desc">Hide stopped sessions from sidebar. They remain in the Archive view and are never auto-deleted.</div>
         </div>
         <label className="toggle">
           <input type="checkbox" checked=${!!settings.autoArchiveStopped}
@@ -1064,7 +1048,6 @@ function App(){
             <input type="checkbox" checked=${sound} onChange=${e=>setSound(e.target.checked)}/>
             Sound
           </label>
-          ${stoppedCount>0&&html`<button className="btn-xs" onClick=${clearStopped}>Clear</button>`}
           ${remoteApproval&&html`
             <label className=${`toggle-sm ${autoApprove?'danger':''}`} title="Automatically approve all permission requests">
               <input type="checkbox" checked=${autoApprove} onChange=${toggleAA}/>
@@ -1107,8 +1090,11 @@ function App(){
             </div>
           `}
           ${showArchived&&settings.autoArchiveStopped&&html`
-            <div className="sidebar-archived" onClick=${()=>setShowArchived(false)}>
-              Hide archived
+            <div className="sidebar-archived-actions">
+              <button className="btn-xs" onClick=${()=>setShowArchived(false)}>Hide archived</button>
+              ${stoppedCount>0&&html`
+                <button className="btn-xs danger" onClick=${()=>{if(confirm('Delete all '+stoppedCount+' archived sessions? This cannot be undone.'))clearStopped()}}>Clear all (${stoppedCount})</button>
+              `}
             </div>
           `}
         </div>

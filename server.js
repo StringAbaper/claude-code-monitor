@@ -108,7 +108,9 @@ routes.register(app, broadcast);
 setInterval(() => store.checkIdleSessions(broadcast), 10_000);
 setInterval(() => store.saveSessions(), 30_000);
 setInterval(() => store.cleanupExpiredApprovals(broadcast), 5_000);
-setInterval(() => { if (store.cleanupOldSessions()) broadcast(store.getFullState()); }, 600_000); // every 10 min
+// Sessions are no longer auto-deleted. Long-idle sessions are auto-promoted
+// to "stopped" (lib/store.js checkIdleSessions) and visible in the archive
+// view; users delete them manually from there.
 
 // Auto-update checker
 updater.startPeriodicCheck(store, () => broadcast(store.getFullState()));

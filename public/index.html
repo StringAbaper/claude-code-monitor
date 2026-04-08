@@ -114,10 +114,10 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .anomaly-toast.sev-warn{background:rgba(245,158,11,.13);border-color:var(--amber);color:var(--amber)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 
-.sidebar-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
-.toggle-sm{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none}
-.toggle-sm input{accent-color:var(--purple);width:13px;height:13px}
-.toggle-sm.active{color:var(--amber)}
+.sidebar-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap}
+.toggle-sm{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);cursor:pointer;user-select:none;white-space:nowrap;font-weight:500}
+.toggle-sm input{accent-color:var(--purple);width:13px;height:13px;margin:0}
+.toggle-sm.active{color:var(--text)}
 .toggle-sm.danger{color:var(--red);font-weight:600}
 .toggle-sm.danger input{accent-color:var(--red)}
 .btn-xs{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer}
@@ -531,24 +531,24 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
       </div>
       <div className="setting-row">
         <div>
-          <div className="setting-label">5h Burn Pill <span style=${{fontSize:'9px',fontWeight:700,color:'var(--purple)',border:'1px solid var(--purple)',padding:'1px 4px',borderRadius:'3px',marginLeft:'6px',letterSpacing:'0.5px'}}>BETA</span></div>
-          <div className="setting-desc">Show the 5h rolling burn estimate in the sidebar header. Estimate is approximate — not yet aligned with Anthropic's official usage numbers.</div>
-        </div>
-        <label className="toggle">
-          <input type="checkbox" checked=${settings.showBurnPill!==false}
-            onChange=${e=>save('showBurnPill',e.target.checked)}/>
-          <div className="toggle-track"></div>
-          <div className="toggle-thumb"></div>
-        </label>
-      </div>
-      <div className="setting-row">
-        <div>
           <div className="setting-label">Auto-archive stopped sessions</div>
           <div className="setting-desc">Hide stopped sessions from sidebar. They remain in the Archive view and are never auto-deleted.</div>
         </div>
         <label className="toggle">
           <input type="checkbox" checked=${!!settings.autoArchiveStopped}
             onChange=${e=>save('autoArchiveStopped',e.target.checked)}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">5h Burn Pill <span style=${{fontSize:'9px',fontWeight:700,color:'var(--purple)',border:'1px solid var(--purple)',padding:'1px 4px',borderRadius:'3px',marginLeft:'6px',letterSpacing:'0.5px'}}>BETA</span></div>
+          <div className="setting-desc">Show the 5h rolling burn estimate in the sidebar header. Estimate is approximate — not yet aligned with Anthropic's official usage numbers.</div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${settings.showBurnPill!==false}
+            onChange=${e=>save('showBurnPill',e.target.checked)}/>
           <div className="toggle-track"></div>
           <div className="toggle-thumb"></div>
         </label>

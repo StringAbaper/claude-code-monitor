@@ -94,8 +94,9 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 /* Settings panel fade-in */
 @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .settings,.detail{animation:fadeUp var(--dur-slow) var(--ease)}
-.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--gray)}
-.conn-dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+.conn-dot{width:7px;height:7px;border-radius:50%}
+.conn-dot.offline{background:var(--red);box-shadow:0 0 6px var(--red);animation:pulseDot 1.5s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:0.4}}
 .burn-pill{display:flex;align-items:center;gap:6px;padding:7px 11px;margin:10px 14px 4px;border-radius:8px;font-size:11px;background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);font-variant-numeric:tabular-nums}
 .burn-pill strong{color:var(--text)}
 .burn-pill .burn-pct{margin-left:2px}
@@ -1091,7 +1092,7 @@ function App(){
           <div className="header-right">
             <button className=${`btn-settings${showSettings?' active':''}`} onClick=${()=>{setShowSettings(!showSettings);if(!showSettings){setSelectedId(null);setMobileDetail(true)}}} title="Settings">\u2699</button>
             <button className="btn-logout" onClick=${logout} title="Logout">⏻</button>
-            <div className=${`conn-dot ${connected?'live':''}`} title=${connected?'Connected':'Disconnected'}></div>
+            ${!connected&&html`<div className="conn-dot offline" title="Disconnected — trying to reconnect"></div>`}
           </div>
         </div>
         ${settings.showBurnPill!==false&&anomalyState&&anomalyState.enabled&&html`

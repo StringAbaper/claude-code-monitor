@@ -631,6 +631,7 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
         <select value=${uiSkin} onChange=${e=>setUiSkin(e.target.value)}
           style=${{background:'var(--surface2)',color:'var(--text)',border:'1px solid var(--border)',borderRadius:'6px',padding:'5px 10px',fontSize:'12px'}}>
           <option value="default">Default</option>
+          <option value="claude">Claude</option>
           <option value="linear">Linear</option>
           <option value="sentry">Sentry</option>
           <option value="raycast">Raycast</option>
@@ -973,7 +974,7 @@ function App(){
   const[anomalyToast,setAnomalyToast]=useState(null);
   const[uiSkin,setUiSkinLocal]=useState(()=>localStorage.getItem('cm-skin')||'default');
   const setUiSkin=useCallback(v=>{
-    if(!['default','linear','sentry','raycast'].includes(v))return;
+    if(!['default','linear','sentry','raycast','claude'].includes(v))return;
     setUiSkinLocal(v);
     localStorage.setItem('cm-skin',v);
     const link=document.getElementById('skin-css');
@@ -1023,7 +1024,7 @@ function App(){
       const d=JSON.parse(e.data);
       if(d.sessions)setSessions(d.sessions);
       if(d.pendingApprovals)setPending(d.pendingApprovals);
-      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled);setSettings(d.settings);if(d.settings.uiSkin&&d.settings.uiSkin!==uiSkin&&['default','linear','sentry','raycast'].includes(d.settings.uiSkin)){setUiSkinLocal(d.settings.uiSkin);localStorage.setItem('cm-skin',d.settings.uiSkin);const link=document.getElementById('skin-css');if(link)link.href=d.settings.uiSkin==='default'?'':'/skins/'+d.settings.uiSkin+'.css'}}
+      if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled);setSettings(d.settings);if(d.settings.uiSkin&&d.settings.uiSkin!==uiSkin&&['default','linear','sentry','raycast','claude'].includes(d.settings.uiSkin)){setUiSkinLocal(d.settings.uiSkin);localStorage.setItem('cm-skin',d.settings.uiSkin);const link=document.getElementById('skin-css');if(link)link.href=d.settings.uiSkin==='default'?'':'/skins/'+d.settings.uiSkin+'.css'}}
       if(d.machineNames)setMNames(d.machineNames);
       if(d.serverHostname)setServerHost(d.serverHostname);
       if(d.updateState)setUpdateInfo(d.updateState);

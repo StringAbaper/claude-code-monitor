@@ -25,16 +25,11 @@ const httpModule = USE_HTTPS ? https : http;
 const POLL_INTERVAL = 400;
 const MAX_POLL_MS = 120_000; // 2 minutes
 
-// Resolve API token: env var > .monitor-token file
-function resolveToken() {
-  if (process.env.CLAUDE_MONITOR_TOKEN) return process.env.CLAUDE_MONITOR_TOKEN;
-  try {
-    const tokenFile = path.join(__dirname, ".monitor-token");
-    if (fs.existsSync(tokenFile)) return fs.readFileSync(tokenFile, "utf8").trim();
-  } catch {}
-  return "";
-}
-const API_TOKEN = resolveToken();
+// API token comes exclusively from the env var that install-hooks.js
+// bakes into ~/.claude/settings.json. The previous .monitor-token file
+// fallback was removed: nothing wrote that file, and a stale or world-
+// readable copy on disk would be a credential exposure with no benefit.
+const API_TOKEN = process.env.CLAUDE_MONITOR_TOKEN || "";
 
 // Safety timeout: 3min for PreToolUse (remote approval), 5s for others
 setTimeout(() => process.exit(0), EVENT_TYPE === "PreToolUse" ? 180_000 : 5_000);

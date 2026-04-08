@@ -58,6 +58,23 @@ app.use((_req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "1mb" }));
+
+// CSRF / blind cross-origin POST defense.
+// Every state-changing request to /api/* must carry an Authorization
+// header. /api/login is the one exception (it issues the token). The
+// browser will not attach Authorization on a cross-origin fetch unless
+// the attacker controls a same-origin script, which would already
+// require a separate breach. This middleware is cheap and turns CORS
+// into a non-issue for the dashboard.
+app.use((req, res, next) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+  if (!req.path.startsWith("/api/")) return next();
+  if (req.path === "/api/login") return next();
+  if (!req.headers.authorization) {
+    return res.status(403).json({ error: "Authorization header required" });
+  }
+  next();
+});
 // Serve dashboard with no-cache so HTML/JS/CSS updates are picked up
 // immediately after a server restart instead of waiting for the user
 // to hard-refresh.

@@ -1,0 +1,96 @@
+/* Claude skin — warm cream + Crail orange, inspired by claude.ai
+   Brand colors come from Anthropic's public design language; fonts use
+   Inter (UI) + Source Serif 4 (accents) as open replacements for Söhne
+   and Tiempos which are not freely licensed. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
+
+:root, [data-theme="dark"] {
+  --bg: #1f1e1d;
+  --surface: #262624;
+  --surface2: #2f2e2c;
+  --surface-hover: #36352f;
+  --border: #3a3833;
+  --border-light: #4a4843;
+  --text: #f4f3ee;
+  --text-muted: #b8b4a6;
+  --text-dim: #807c70;
+  --green: #94c181;
+  --green-bg: rgba(148,193,129,0.10);
+  --amber: #e6a861;
+  --amber-bg: rgba(230,168,97,0.10);
+  --red: #d96e5b;
+  --red-bg: rgba(217,110,91,0.10);
+  --blue: #a8c3d4;
+  --blue-bg: rgba(168,195,212,0.12);
+  --gray: #807c70;
+  --cyan: #8fb8b3;
+  --purple: #cc785c;
+  --purple-bg: rgba(204,120,92,0.14);
+}
+
+[data-theme="light"] {
+  --bg: #f0eee6;
+  --surface: #faf9f4;
+  --surface2: #ebe9df;
+  --surface-hover: #e3e0d5;
+  --border: #e3e0d5;
+  --border-light: #d3cfc0;
+  --text: #3d3929;
+  --text-muted: #6b6757;
+  --text-dim: #9a9684;
+  --green: #5e8a4a;
+  --green-bg: rgba(94,138,74,0.10);
+  --amber: #b8741f;
+  --amber-bg: rgba(184,116,31,0.10);
+  --red: #b85a3e;
+  --red-bg: rgba(184,90,62,0.10);
+  --blue: #5680a0;
+  --blue-bg: rgba(86,128,160,0.10);
+  --gray: #9a9684;
+  --cyan: #4f8d87;
+  --purple: #cc785c;
+  --purple-bg: rgba(204,120,92,0.12);
+}
+
+html, body, .app {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+.logo {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.detail-title {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.detail-card, .si, .approval-card, .anomaly-toast, .burn-pill, .settings-section {
+  border-radius: 10px;
+}
+.btn-xs, .toggle-sm, button, select, input[type=text], input[type=number], input[type=password] {
+  border-radius: 8px;
+}
+
+/* Crail orange selection */
+.si.selected {
+  background: var(--purple-bg);
+  border-color: var(--purple);
+}
+
+/* Subtle warm shadow on cards in light mode */
+[data-theme="light"] .detail-card,
+[data-theme="light"] .si,
+[data-theme="light"] .settings-section {
+  box-shadow: 0 1px 3px rgba(61,57,41,0.04);
+}
+
+/* Connection dot uses brand orange when offline */
+.conn-dot.offline {
+  background: var(--purple);
+  box-shadow: 0 0 6px var(--purple);
+}

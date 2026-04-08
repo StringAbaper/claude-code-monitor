@@ -1,10 +1,11 @@
 {
   "name": "claude-code-monitor",
-  "version": "1.6.0-beta.0",
+  "version": "1.6.0-beta.1",
   "description": "Real-time monitor for Claude Code sessions across multiple IDEs and terminals",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test lib/*.test.js",
     "install-hooks": "node install-hooks.js",
     "uninstall-hooks": "node install-hooks.js --remove",
     "deploy": "node deploy.js"

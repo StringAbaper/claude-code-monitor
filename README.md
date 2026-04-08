@@ -4,6 +4,8 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 
 ![Node.js](https://img.shields.io/badge/node-%3E%3D18-green) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 
+> **Heads up:** primary development happens on **Windows** and **macOS**. Linux is supported but tested less frequently — if you hit a bug there (or anywhere), please [open an issue](https://github.com/bruceyxli/claude-code-monitor/issues) with your OS, Node version, and what you were doing.
+
 ## Features
 
 - **Multi-session monitoring** — See all active Claude Code sessions in one dashboard, across IDEs and terminals

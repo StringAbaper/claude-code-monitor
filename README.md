@@ -9,16 +9,19 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 ## Features
 
 - **Multi-session monitoring** — See all active Claude Code sessions in one dashboard, across IDEs and terminals
+- **Session titles** — Each session shows its first user prompt as a title (like VS Code tabs). Click to rename inline, syncs to every connected dashboard
 - **Remote approval** — Approve or deny tool permission requests directly from the dashboard without switching windows
 - **Auto-approve** — Optionally auto-approve all permission requests (with safety confirmation)
 - **Window focus** — Jump to the session's IDE or terminal window from the dashboard (cross-platform, **local-only**: button only appears when the dashboard is opened on the same machine that runs the session)
-- **Token usage** — Track input/output/cache token usage per session
-- **Light/Dark mode** — Toggle theme with OS preference auto-detection
+- **Token usage + anomaly detection** — Track input/output/cache tokens per session. Six anomaly detectors watch for cache-miss spikes, resume bursts, burn-rate spikes, 5h window breaches, idle burn, and peak-hour amplification
+- **Discrete 5h session window** — Burn pill matches Anthropic's billing model with a live "Resets in Xh Ym" countdown
+- **Multi-skin theming** — Default, Linear, Sentry, Raycast, Claude. Day / Night mode in Settings → Appearance
 - **LAN support** — Monitor Claude Code sessions from other machines on the same network
 - **Real-time updates** — WebSocket-powered live state with session status, current tool, event log
 - **Audio alerts** — Different sounds for permission requests (urgent) and task completion (chime)
 - **Browser notifications** — Desktop notification when permission prompt or task completion occurs
-- **Session persistence** — Sessions survive server restarts
+- **Session persistence + archive** — Sessions survive server restarts. Long-idle sessions auto-promote to the Archive view; never auto-deleted
+- **Beta update channel** — Opt in to the cutting-edge beta branch via Settings → Updates → Update channel
 - **Mobile responsive** — Dashboard works on phones and tablets
 
 ## Supported Platforms
@@ -170,7 +173,7 @@ Make sure port 7888 is open on the server machine:
 All API endpoints and WebSocket connections require a valid API token. The dashboard requires a password to log in.
 
 - **API Token** — Auto-generated UUID on first server start, stored in `data/config.json`
-- **Dashboard Password** — Set on first browser visit, stored as a PBKDF2-SHA512 hash with 100k iterations (never plaintext)
+- **Dashboard Password** — Set on first browser visit, stored as a PBKDF2-SHA512 hash with **210,000 iterations** (OWASP 2023 guidance, never plaintext)
 - **hook-handler** — Reads token from `CLAUDE_MONITOR_TOKEN` env var (baked in by `install-hooks.js`)
 - **WebSocket** — Token passed as query parameter on connection
 

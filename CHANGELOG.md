@@ -1,5 +1,96 @@
 # Changelog
 
+## v1.6.0 (2026-04-08)
+
+Second stable in the 1.6.x line. Aggregates 12 beta releases.
+
+### Anomaly token consumption detection
+- 6 detectors running on every `Stop` event: cacheMissSpike, resumeBurst, burnRateSpike, window5h threshold, idleBurn, peakHourBurn
+- Cost-weighted token counting (Sonnet pricing ratios: input=1, output=5, cache_read=0.1, cache_write=1.25)
+- **Discrete 5h session window** matching Anthropic's billing model: opens on first event, accumulates for 5h, resets on next event after expiry
+- Live countdown pill: "Resets in 2h 14m" ticks down client-side
+- 30-test `node:test` suite
+
+### Session titles + inline rename
+- First user prompt becomes the session title (mirrors VS Code tab behavior)
+- Click-to-edit in the detail panel header; Enter/Esc/blur commit; empty input clears
+- New `POST /api/sessions/:id/title` endpoint, persisted + broadcast
+
+### Multi-skin theming
+- 4 new UI skins on top of dark/light: **Linear**, **Sentry**, **Raycast**, **Claude** (warm cream + Crail orange + Inter / Source Serif 4)
+- Switch in Settings → Appearance
+- Single CSS file per skin, loaded pre-React to avoid FOUC
+
+### Card-based UI
+- Sidebar items: rounded cards with hover lift + shadow
+- Detail panel: discrete cards for info+chart, current activity, pending approvals, recent events
+- Settings: section cards with 12px radius
+
+### Day / Night control
+- Dark/light toggle moved out of header into Settings → Appearance as a segmented control
+
+### Beta update channel
+- Opt-in via Settings → Updates → Update channel
+- Scans GitHub `/releases?per_page=20` for the highest-semver `prerelease: true` entry
+- Full semver compare including prerelease identifiers (`beta.10 > beta.9` numerically)
+
+### Session lifecycle fixes
+- Long-idle sessions auto-promote to 'stopped' after 1h (Claude Code doesn't always emit `SessionEnd`)
+- **Sessions are never auto-deleted**. Archive is permanent until user explicitly clears it
+- `autoArchiveStopped` defaults to true
+- 'Clear archived' button moved from sidebar to Settings → Data
+- PostToolUse → ALLOWED auto-backfill (eliminates ghost PENDING badges)
+
+### Reliability
+- **Atomic JSON writes** for `sessions.json` and `config.json` (tmp + rename). Crash mid-write can no longer corrupt all sessions / settings
+- Orphan `.tmp` files cleaned up at startup
+- Updater is non-fatal on `npm install` failure (git pull already succeeded, new code is on disk)
+- Updater `shell: true` for Windows npm.cmd resolution
+- Static file `Cache-Control: no-store` so dashboard updates appear on server restart without hard-refresh
+- Connection dot hidden when online (red pulsing dot only on disconnect)
+- `/api/machines/:hostname/rename` accepts empty name to clear
+
+### Security audit fixes
+- `npm audit fix` patches transitive path-to-regexp ReDoS (GHSA-37ch-88jc-xwx2)
+- **CSRF defense**: non-GET `/api/*` requires Authorization header (except `/api/login`)
+- **Per-account login backoff** layered on per-IP rate limit (200ms × failures, cap 5s)
+- Password minimum bumped to 8 characters
+- Path-id length validation on `/api/pending/:id` and `/api/sessions/:id/focus`
+- Focus endpoint rate-limited to 1 call/sec/session
+- Strict shell sanitization allowlist in `lib/focus.js`
+- PBKDF2 iterations bumped from 100k → 210k (OWASP 2023)
+- `~/.claude/settings.json` chmod 0o600 after install
+- Removed dead `.monitor-token` fallback
+- `UserPromptSubmit` prompt/message fields now strict `typeof === "string"`
+
+### Architecture
+- **Schema-driven config** in `lib/config.js`. Adding a dashboard setting = one row. -80 lines of duplicated validation
+- New `npm run reset-password` CLI for forgotten passwords
+- `npm test` runs the full `node:test` suite (zero new dependencies)
+
+### Docs
+- README flags Windows / macOS as primary tested platforms
+- LICENSE, CONTRIBUTING, SECURITY files added (1.6.1-beta Phase 0 sprint)
+
+## v1.5.0 (2026-03-31)
+
+First stable in the 1.5.x line.
+
+### Beta update channel foundation
+- GitHub Releases prerelease scheme for beta channel
+- Full semver compare including prerelease tags (`cmpSemver` in `lib/updater.js`)
+- Stable channel uses `/releases/latest`, beta scans `/releases?per_page=20`
+- Update channel selector in Settings → Updates
+
+### Reliability
+- Session cleanup actually works (idle → stopped transition after 1h)
+- `clearStoppedSessions` persists immediately via `saveSessions`
+- Focus Window button hidden when it cannot work (remote dashboards, mobile, cross-machine views)
+
+### Settings refactor
+- New "Appearance" section with UI skin dropdown
+- `showBurnPill` toggle (default on) with BETA tag
+
 ## v1.4.0 (2026-03-25)
 
 ### Settings Panel

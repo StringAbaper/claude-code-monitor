@@ -171,6 +171,13 @@ function parseTranscriptUsage(sessionId, cwd) {
       totals.cache_read_input_tokens += u.cache_read_input_tokens || 0;
     }
 
+    // Phase 1 reservation: field for a per-component token breakdown
+    // (memory / skills / reasoning). Anthropic's usage object does not
+    // expose this natively — Phase 1 will populate it via a heuristic
+    // (e.g. content-blind byte counting of assistant message parts).
+    // Kept null in Phase 0 so downstream consumers can feature-detect.
+    totals._tokenBreakdown = null;
+
     return totals;
   } catch {
     return null;

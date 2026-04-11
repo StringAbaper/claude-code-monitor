@@ -128,6 +128,18 @@ wss.on("connection", (ws, req) => {
 // Register all API routes
 routes.register(app, broadcast);
 
+// Generic error handler — catches any exception thrown out of a route
+// handler that did not use its own try/catch. Returns a generic 500
+// without leaking stack traces or internal state. Logs to stderr for
+// local debugging.
+// Must be declared AFTER routes.register so it's the last middleware.
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error("  [server] Unhandled route error:", err && err.message);
+  if (res.headersSent) return;
+  res.status(500).json({ error: "Internal server error" });
+});
+
 // ──────────────────────────────────────────────
 // Intervals + shutdown
 // ──────────────────────────────────────────────

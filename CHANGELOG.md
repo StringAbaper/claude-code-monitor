@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.7.0-beta.1 (2026-04-11)
+
+First Phase 1 feature release. The 1.7.0 line introduces new harness-engineering observation dimensions on top of the existing burn pill and token chart.
+
+### Added
+- **Context Budget split** (BETA) — every session's cumulative tokens are now broken down into three semantic buckets in the detail panel:
+  - **Memory**: net new input + short-lived ephemeral cache + cache reads (what the model has to keep "in mind")
+  - **Skills**: long-lived ephemeral cache (system prompt + tool specs + cached skill bodies)
+  - **Reasoning**: model output tokens
+  Rendered as a horizontal stacked bar plus a numeric breakdown. Hover the Memory row to see how many of those tokens are cache reads (billed at ~10%).
+- The split uses Anthropic's own `cache_creation.ephemeral_1h_input_tokens` vs `ephemeral_5m_input_tokens` fields — not a fuzzy estimator. We are aggregating data Anthropic is already returning.
+- New Settings → Display toggle "Context Budget (BETA)" (defaults to ON).
+- Sessions persisted before this release render in legacy grayscale mode with an explanatory subtitle ("Legacy totals (recorded before v1.7.0-beta.1) — new sessions will show role breakdown").
+- New `lib/budget.js` pure module with 15 unit tests.
+- 23 new tests total (108 → 108 + 23 in subsequent commits, but the pure-budget tests are isolated and the integration tests cover store + tools + config).
+
+### Internal
+- `hook-handler.js` `parseTranscriptUsage` now sums `cache_creation.ephemeral_1h_input_tokens` and `ephemeral_5m_input_tokens` per assistant message and attaches them as `usage._breakdown`. Replaces the `_tokenBreakdown: null` sentinel from Phase 0 Step 8.
+- `lib/tools.js` `sanitizeUsage` preserves `_breakdown` with per-field clamping.
+- `lib/store.js` `getFullState` shallow-clones each session's usage and attaches `_budget = computeBudget(usage)` for the broadcast. The in-memory session object is never mutated (verified in tests).
+
+## v1.6.1 (2026-04-11)
+
+Patch release aggregating the Phase 0 stability sprint. Twelve-step audit trail in `docs/sprint-phase0-baseline.md`.
+
+### Stability
+- Updater self-heals orphan `.git/index.lock`. Fixes the remote-server hang from the beta.4 → beta.6 cycle.
+- Path-id length validation consistent across all 7 routes; two previously-missing routes now validate.
+- Generic Express error handler catches uncaught route exceptions.
+- `lib/config.js` runtime guard refuses module load if any SCHEMA field name looks like a secret.
+
+### Tests: 24 → 85
+- New: `lib/config.test.js` (17), `lib/tools.test.js` (21), `lib/updater.test.js` (13), `lib/store.test.js` (4).
+- Expanded: `lib/anomaly.test.js` +6 boundary cases.
+- Zero new dependencies; uses Node's built-in `node:test`.
+
+### Open-source readiness
+- LICENSE (MIT — file was missing despite the README claim for months)
+- CONTRIBUTING.md, SECURITY.md
+- CHANGELOG backfilled v1.5.0 and v1.6.0
+
+### Doc fixes
+- README and CLAUDE.md now correctly state PBKDF2 at 210,000 iterations (OWASP 2023). The code was bumped in beta.9 but docs were never updated.
+
 ## v1.6.0 (2026-04-08)
 
 Second stable in the 1.6.x line. Aggregates 12 beta releases.

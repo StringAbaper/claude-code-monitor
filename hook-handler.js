@@ -162,21 +162,37 @@ function parseTranscriptUsage(sessionId, cwd) {
       } catch {}
     }
 
-    // Sum all usage
+    // Sum all usage. Also accumulate the cache TTL split when present —
+    // Anthropic's API exposes message.usage.cache_creation as
+    // { ephemeral_1h_input_tokens, ephemeral_5m_input_tokens } on
+    // models / tiers that use prompt caching. The 1h split corresponds
+    // to long-lived material (system prompts, tool specs, skill bodies);
+    // the 5m split is the rolling conversation window. lib/budget.js
+    // turns this into the user-facing memory / skills / reasoning split.
     const totals = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+    let breakdown1h = 0;
+    let breakdown5m = 0;
+    let sawBreakdown = false;
     for (const u of seen.values()) {
       totals.input_tokens += u.input_tokens || 0;
       totals.output_tokens += u.output_tokens || 0;
       totals.cache_creation_input_tokens += u.cache_creation_input_tokens || 0;
       totals.cache_read_input_tokens += u.cache_read_input_tokens || 0;
+      const cc = u.cache_creation;
+      if (cc && typeof cc === "object") {
+        sawBreakdown = true;
+        breakdown1h += cc.ephemeral_1h_input_tokens || 0;
+        breakdown5m += cc.ephemeral_5m_input_tokens || 0;
+      }
     }
 
-    // Phase 1 reservation: field for a per-component token breakdown
-    // (memory / skills / reasoning). Anthropic's usage object does not
-    // expose this natively — Phase 1 will populate it via a heuristic
-    // (e.g. content-blind byte counting of assistant message parts).
-    // Kept null in Phase 0 so downstream consumers can feature-detect.
-    totals._tokenBreakdown = null;
+    // Only attach _breakdown when we actually saw the field on at least
+    // one message. Sessions on older models or with no caching at all
+    // get null → lib/budget.js falls back to its legacy mode and the
+    // dashboard renders the historical-data subtitle.
+    totals._breakdown = sawBreakdown
+      ? { ephemeral_1h: breakdown1h, ephemeral_5m: breakdown5m }
+      : null;
 
     return totals;
   } catch {

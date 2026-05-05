@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.7.0-beta.2 (2026-04-11)
+
+Second Phase 1 feature release.
+
+### Added
+- **Skill Analytics panel** (BETA) — every session's detail panel now shows which CCB-skills were invoked, how many times each, when each was last used, and whether they're destructive (per the skill's frontmatter). Hidden when there are no skill calls or no CCB-skills repo configured.
+- **"Next?" hint** — when the most recent skill has a `suggests_next` list and the user has not yet invoked any of them, the card surfaces a soft suggestion. No anomaly / alert — just a visible nudge.
+- **Settings → Display** gains two new rows:
+  - **Skill Analytics (BETA)** toggle (defaults to ON)
+  - **CCB-skills repo path** text input — leave empty for auto-probe (`~/CCB-skills`, `~/Projects/CCB-skills`, `~/code/CCB-skills`, `~/dev/CCB-skills`); set explicitly when the repo lives elsewhere.
+- New `lib/skill-analytics.js` — pure module with `parseFrontmatter`, `parseSkillRepo`, `aggregateCalls`, `autoProbeSkillRepo`. Strictly self-isolated (no `require()` of any other lib/* file) so it can be lifted into a standalone `ccb-skill-stats` npm package later with zero rewrites.
+- New `lib/skill-analytics.test.js` — 17 tests including a require-cache assertion that locks in the zero-coupling discipline.
+
+### Internal
+- `lib/store.js` adds `loadSkillIndex()` (called once at server boot), `appendSkillCall(sessionId, call)`, and `getFullState` attaches per-session `skillStats` via the same shallow-clone pattern as Context Budget. Defensive: legacy persisted sessions get `skill_calls = []` on load.
+- `lib/tools.js` `processEvent` PreToolUse case now calls `store.appendSkillCall` when `tool_name === "Skill"` and `tool_input.skill` is present. The `args` field is intentionally **not** stored — the card does not display it and dropping it removes a minor PII vector.
+- `lib/config.js` SCHEMA gains `showSkillAnalytics` (boolean, default true) and `skillRepoPath` (string, default empty = auto-probe). Both pass the secret-name guard.
+- `server.js` calls `store.loadSkillIndex()` after `loadSessions()`.
+- Skill calls per session are bounded at `MAX_SKILL_CALLS = 500`, FIFO eviction.
+
+### Notes
+- The Skill Analytics card only appears for sessions with at least one recorded skill call **after** the new hook lands. Old sessions show no card. The legacy state is intentional and silent.
+- The Skill name index is loaded **once at server boot**. To pick up new skills added to the CCB-skills repo, restart the server. (Hot reload is a future enhancement.)
+- A PreToolUse event for the Skill tool is recorded as a "call" even if the skill ultimately fails or is canceled. This is intentional — we want to capture user *intent*, not just successful runs.
+
+### Test count
+- 108 → 132 (+24 across 4 files)
+
 ## v1.7.0-beta.1 (2026-04-11)
 
 First Phase 1 feature release. The 1.7.0 line introduces new harness-engineering observation dimensions on top of the existing burn pill and token chart.

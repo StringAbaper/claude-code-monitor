@@ -225,6 +225,19 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .budget-val{color:var(--text);font-weight:500;text-align:right}
 .budget-pct{color:var(--text-dim);text-align:right;min-width:34px}
 .budget-legacy-note{margin-top:10px;font-size:10px;color:var(--text-dim);font-style:italic;line-height:1.5}
+/* Skill Analytics card */
+.skill-card{}
+.skill-rows{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-variant-numeric:tabular-nums}
+.skill-row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;font-size:12px;padding:4px 0}
+.skill-name{color:var(--text);font-weight:500;font-family:'Cascadia Code','Consolas',monospace;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.skill-name.unknown{color:var(--text-dim);font-style:italic}
+.skill-count{color:var(--purple);font-weight:600;text-align:right;min-width:28px}
+.skill-time{color:var(--text-dim);font-size:10px;text-align:right;min-width:60px}
+.skill-destr{color:var(--amber);font-size:11px;width:14px;text-align:center}
+.skill-totals{font-size:11px;color:var(--text-muted);padding-top:8px;border-top:1px solid var(--border)}
+.skill-next-hint{margin-top:8px;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--text-muted);line-height:1.5}
+.skill-next-hint strong{color:var(--text);font-weight:600;margin-right:6px}
+.skill-next-hint code{font-family:'Cascadia Code','Consolas',monospace;font-size:10px;color:var(--purple);background:var(--purple-bg);padding:1px 5px;border-radius:3px}
 
 .detail-info{display:grid;grid-template-columns:100px 1fr;gap:8px 16px;font-size:13px}
 .detail-info dt{color:var(--text-muted)}
@@ -594,6 +607,28 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
           <div className="toggle-thumb"></div>
         </label>
       </div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Skill Analytics <span style=${{fontSize:'9px',fontWeight:700,color:'var(--purple)',border:'1px solid var(--purple)',padding:'1px 4px',borderRadius:'3px',marginLeft:'6px',letterSpacing:'0.5px'}}>BETA</span></div>
+          <div className="setting-desc">In each session's detail panel, show which CCB-skills you invoked, how often, and a "Next?" hint based on each skill's frontmatter <code>suggests_next</code>. Set the repo path below if auto-probe fails.</div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${settings.showSkillAnalytics!==false}
+            onChange=${e=>save('showSkillAnalytics',e.target.checked)}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
+      </div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">CCB-skills repo path</div>
+          <div className="setting-desc">Absolute path to the CCB-skills repository. Leave empty for auto-probe (~/CCB-skills, ~/Projects/CCB-skills, ~/code/CCB-skills, ~/dev/CCB-skills). Server restart required to reload.</div>
+        </div>
+        <input type="text" defaultValue=${settings.skillRepoPath||''}
+          onBlur=${e=>save('skillRepoPath',e.target.value.trim())}
+          placeholder="auto-probe"
+          style=${{fontFamily:"'Cascadia Code','Consolas',monospace",fontSize:'11px',padding:'6px 10px',width:'260px',borderRadius:'6px',border:'1px solid var(--border)',background:'var(--bg)',color:'var(--text)'}}/>
+      </div>
     </div>
 
     <div className="settings-section">
@@ -927,8 +962,56 @@ function ContextBudgetCard({budget}){
   `;
 }
 
+// ── Skill Analytics Card ──
+// Renders per-skill counts, last-used timestamps, destructive flags,
+// and an actionable "Next?" hint when the last call's frontmatter
+// suggests a follow-up the user has not yet invoked.
+function SkillAnalyticsCard({stats}){
+  if(!stats||!stats.totals||stats.totals.totalCalls===0)return null;
+  const rows=Object.values(stats.perSkill).sort((a,b)=>b.lastUsed-a.lastUsed||b.count-a.count).slice(0,8);
+  // "Next?" hint logic (Q2 decision: only show when the user has NOT
+  // yet invoked any of the suggested follow-ups for the most recent call)
+  let nextHint=null;
+  if(stats.lastCall){
+    const lastSkill=stats.perSkill[stats.lastCall.name];
+    if(lastSkill&&Array.isArray(lastSkill.suggestsNext)&&lastSkill.suggestsNext.length>0){
+      const invoked=new Set(Object.keys(stats.perSkill));
+      const unInvoked=lastSkill.suggestsNext.filter(n=>!invoked.has(n));
+      if(unInvoked.length>0){
+        nextHint={from:stats.lastCall.name,suggested:unInvoked};
+      }
+    }
+  }
+  const t=stats.totals;
+  return html`
+    <div className="detail-card skill-card">
+      <div className="detail-card-title">
+        Skill Analytics <span className="beta-tag">BETA</span>
+      </div>
+      <div className="skill-rows">
+        ${rows.map(r=>html`
+          <div className="skill-row" key=${r.name} title=${r.unknown?'Skill not found in CCB-skills frontmatter':(r.destructive?'Destructive: writes to source':'Read-only / non-destructive')}>
+            <span className=${`skill-name${r.unknown?' unknown':''}`}>${r.name}</span>
+            <span className="skill-count">×${r.count}</span>
+            <span className="skill-time">${timeAgo(r.lastUsed)}</span>
+            ${r.destructive&&html`<span className="skill-destr" title="Destructive — writes to source">⚠</span>`}
+          </div>
+        `)}
+      </div>
+      <div className="skill-totals">
+        ${t.totalCalls} call${t.totalCalls===1?'':'s'} · ${t.distinctSkills} distinct${t.destructiveCalls>0?' · '+t.destructiveCalls+' destructive':''}${t.unknownCalls>0?' · '+t.unknownCalls+' unknown':''}
+      </div>
+      ${nextHint&&html`
+        <div className="skill-next-hint">
+          <strong>Next?</strong> After <code>${nextHint.from}</code>, frontmatter suggests: ${nextHint.suggested.map((n,i)=>html`${i>0?' / ':''}<code>${n}</code>`)}
+        </div>
+      `}
+    </div>
+  `;
+}
+
 // ── Detail Panel ──
-function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBack, machineNames, theme, serverHostname, showTokenChart, showContextBudget}){
+function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBack, machineNames, theme, serverHostname, showTokenChart, showContextBudget, showSkillAnalytics}){
   const [editingTitle,setEditingTitle]=useState(false);
   const [titleDraft,setTitleDraft]=useState('');
   useEffect(()=>{setEditingTitle(false)},[s&&s.id]);
@@ -1009,6 +1092,8 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
       </div>
 
       ${showContextBudget&&s.usage&&s.usage._budget&&s.usage._budget.total>0&&html`<${ContextBudgetCard} budget=${s.usage._budget}/>`}
+
+      ${showSkillAnalytics&&s.skillStats&&s.skillStats.totals&&s.skillStats.totals.totalCalls>0&&html`<${SkillAnalyticsCard} stats=${s.skillStats}/>`}
 
       <div className="detail-card">
         <div className="detail-card-title">Current Activity</div>
@@ -1323,6 +1408,7 @@ function App(){
             serverHostname=${serverHost}
             showTokenChart=${settings.showTokenChart!==false}
             showContextBudget=${settings.showContextBudget!==false}
+            showSkillAnalytics=${settings.showSkillAnalytics!==false}
           />`
         }
       </div>

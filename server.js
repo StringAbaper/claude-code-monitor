@@ -19,6 +19,7 @@ const USE_HTTPS = process.argv.includes("--https") || process.env.HTTPS === "tru
 // ──────────────────────────────────────────────
 store.loadConfig();
 store.loadSessions();
+store.loadSkillIndex();
 
 // ──────────────────────────────────────────────
 // HTTPS cert setup

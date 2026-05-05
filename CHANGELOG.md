@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.7.0-beta.3 (2026-04-12)
+
+Out-of-band stability/UX release. Phase 1 Feature #3 (Intent-Execution Gap Detector) is pushed to **v1.7.0-beta.4**.
+
+### Added
+- **Optional login toggle** in Settings → Security. Useful for personal local-only setups where the password prompt is friction without value.
+- When the toggle is **OFF**:
+  - `/api/login` returns the API token unconditionally (no password check).
+  - On next server restart, the server **force-binds 127.0.0.1** instead of `0.0.0.0`. LAN access stops; only this machine can reach the dashboard.
+  - Dashboard auto-detects no-auth mode on load and skips the login screen.
+  - Server startup banner reads `Login: OFF (no auth — localhost only)` and the LAN URL line is replaced with a disabled note.
+- Toggle requires a confirm prompt + alert reminding the user the bind change takes effect on restart.
+
+### Internal
+- `lib/config.js` SCHEMA gains `requireLogin` (boolean, default true).
+- `lib/routes.js` `/api/login` short-circuits with `{ token, noAuth: true }` when `requireLogin === false`.
+- `server.js` reads `requireLogin` once at startup to decide bind address.
+- `public/index.html` LoginScreen probes `/api/login` once on mount; if `noAuth: true` is returned, it stores the token and signs in immediately.
+- `SECURITY.md` updated with the no-auth mode threat model and rationale.
+
+### Notes
+- Existing password (if any) is preserved across the toggle. Flipping the toggle back ON + restart restores the original password-protected flow.
+- This release is **NOT** the Intent-Execution Gap Detector. That feature ships as v1.7.0-beta.4.
+
 ## v1.7.0-beta.2 (2026-04-11)
 
 Second Phase 1 feature release.

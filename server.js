@@ -170,22 +170,36 @@ function getLanIP() {
   return "unknown";
 }
 
-server.listen(PORT, "0.0.0.0", () => {
+// requireLogin OFF → force-bind 127.0.0.1 so the dashboard is reachable
+// only from this machine. Anyone reaching the server gets a token without
+// a password, so LAN exposure is unacceptable in this mode.
+const BIND_HOST = store.getConfig().requireLogin === false ? "127.0.0.1" : "0.0.0.0";
+
+server.listen(PORT, BIND_HOST, () => {
   const lanIP = getLanIP();
   const proto = USE_HTTPS ? "https" : "http";
   const token = store.getApiToken();
   const hasPw = !!store.getDashboardPasswordHash();
+  const noAuth = store.getConfig().requireLogin === false;
   console.log("");
   console.log("  ╔══════════════════════════════════════════════╗");
   console.log("  ║         Claude Code Monitor v1.4.0           ║");
   console.log(`  ║  Local:   ${proto}://localhost:${PORT}                ║`);
-  console.log(`  ║  LAN:     ${proto}://${lanIP}:${PORT}          ║`);
+  if (noAuth) {
+    console.log(`  ║  LAN:     (disabled — login is OFF, bound 127.0.0.1)  ║`);
+  } else {
+    console.log(`  ║  LAN:     ${proto}://${lanIP}:${PORT}          ║`);
+  }
   console.log(`  ║  HTTPS:   ${USE_HTTPS ? "ON" : "OFF (use --https to enable)"}             ║`);
   console.log("  ╚══════════════════════════════════════════════╝");
   const cfg = store.getConfig();
   console.log(`  Remote approval: ${cfg.remoteApprovalEnabled ? "ON" : "OFF"}`);
   console.log(`  Auto-approve:    ${cfg.autoApproveEnabled ? "ON (DANGEROUS)" : "OFF"}`);
-  console.log(`  Dashboard:       ${hasPw ? "Password set" : "No password (set on first login)"}`);
+  if (noAuth) {
+    console.log(`  Login:           OFF (no auth — localhost only — DO NOT enable LAN bind without re-enabling login)`);
+  } else {
+    console.log(`  Dashboard:       ${hasPw ? "Password set" : "No password (set on first login)"}`);
+  }
   console.log(`  API Token:       ${token}`);
   console.log("");
   console.log(`  Remote machines: node install-hooks.js --url=${proto}://${lanIP}:${PORT} --token=${token}`);

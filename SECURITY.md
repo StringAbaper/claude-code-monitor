@@ -52,6 +52,18 @@ The project is **NOT** designed to be exposed to the public internet. If you put
 - Protection against zero-day browser exploits affecting the dashboard
 - Content-Security-Policy hardening beyond the current `X-Frame-Options: DENY` + `X-Content-Type-Options: nosniff`
 
+### Optional no-auth mode (v1.7.0-beta.3+)
+
+Settings → Security has a **Require login** toggle. When turned OFF:
+
+- The server's `/api/login` endpoint hands out the API token unconditionally — no password check.
+- On next server restart, the server **force-binds `127.0.0.1`** instead of `0.0.0.0`. The dashboard becomes reachable from this machine only.
+- The startup banner replaces the LAN URL line with `(disabled — login is OFF, bound 127.0.0.1)` and adds a `Login: OFF (no auth — localhost only)` line.
+
+Use this mode only on a trusted personal machine. With it on, anyone with shell access to your user account can drive your Claude Code sessions through the dashboard with no authentication. The bind change is what keeps LAN attackers out — never try to expose a no-auth server to the network.
+
+To re-enable login: flip the toggle back ON, restart the server. The previously-set password (if any) is preserved across the toggle and resumes working immediately.
+
 ### Known limitations (accepted trade-offs)
 
 These are documented here so you know what you're signing up for:

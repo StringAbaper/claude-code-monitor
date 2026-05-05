@@ -457,6 +457,23 @@ function LoginScreen({onLogin}){
   const[pw,setPw]=useState('');
   const[err,setErr]=useState('');
   const[loading,setLoading]=useState(false);
+  const[probing,setProbing]=useState(true);
+  // Probe once on mount: if the server runs in no-auth mode, /api/login
+  // returns the token without a password. Skip the form entirely.
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:''})});
+        const data=await res.json();
+        if(res.ok&&data.token&&data.noAuth){
+          localStorage.setItem('cm-token',data.token);
+          onLogin(data.token);
+          return;
+        }
+      }catch{}
+      setProbing(false);
+    })();
+  },[]);
   const handleSubmit=async(e)=>{
     e.preventDefault();setErr('');setLoading(true);
     try{
@@ -467,6 +484,7 @@ function LoginScreen({onLogin}){
     }catch{setErr('Cannot connect to server')}
     setLoading(false);
   };
+  if(probing)return html`<div className="login-screen"><div style=${{color:'var(--text-muted)'}}>Loading...</div></div>`;
   return html`
     <div className="login-screen">
       <form className="login-box" onSubmit=${handleSubmit}>
@@ -644,6 +662,34 @@ function SettingsPanel({settings, sessions, machineNames, serverHostname, authTo
           onClick=${()=>{if(confirm('Delete all '+archivedNow+' archived sessions? This cannot be undone.'))onClearArchived()}}>
           Clear archived${archivedNow>0?' ('+archivedNow+')':''}
         </button>
+      </div>
+    </div>
+
+    <div className="settings-section">
+      <div className="settings-section-title">Security</div>
+      <div className="setting-row">
+        <div>
+          <div className="setting-label">Require login</div>
+          <div className="setting-desc">
+            When ON, the dashboard prompts for a password and is reachable on the LAN.
+            When OFF, the password is bypassed AND the server force-binds <code>127.0.0.1</code>
+            on next start (so only this machine can access it). Use only on trusted local setups.
+            ${settings.requireLogin===false?html`<br/><strong style=${{color:'var(--amber)'}}>⚠ Currently OFF — anyone with localhost access can control Claude Code without authentication.</strong>`:''}
+          </div>
+        </div>
+        <label className="toggle">
+          <input type="checkbox" checked=${settings.requireLogin!==false}
+            onChange=${e=>{
+              const next=e.target.checked;
+              if(!next){
+                if(!confirm('Disable login?\n\nThis removes password authentication AND, on the next server restart, force-binds the server to 127.0.0.1 (LAN access stops).\n\nOnly safe on trusted local setups.'))return;
+              }
+              save('requireLogin',next);
+              alert('Server restart required for the bind-address change to take effect.');
+            }}/>
+          <div className="toggle-track"></div>
+          <div className="toggle-thumb"></div>
+        </label>
       </div>
     </div>
 

@@ -184,6 +184,51 @@ function parseTranscriptUsage(sessionId, cwd) {
   }
 }
 
+// ── Ancestor PIDs (Windows) ─────────────────
+// Walk the parent-process chain of this hook process: shell → claude →
+// user shell → terminal (WindowsTerminal.exe / Code.exe / ...). The server
+// uses these pids to focus the exact window hosting the session, because
+// Windows Terminal tab titles don't contain the project name or cwd.
+// Collected only on SessionStart / UserPromptSubmit to keep per-event cost
+// off the hot path (PreToolUse/PostToolUse fire far more often).
+
+function getAncestorPids() {
+  try {
+    const { execFileSync } = require("child_process");
+    let out = "";
+    try {
+      // wmic redirected output is UTF-16LE
+      const buf = execFileSync("wmic", ["process", "get", "ParentProcessId,ProcessId"], { timeout: 4000, windowsHide: true });
+      out = buf.includes(0) ? buf.toString("utf16le") : buf.toString();
+    } catch {
+      // wmic was removed on recent Win11 — fall back to CIM, but only on
+      // SessionStart (PowerShell cold start is too slow for every prompt)
+      if (EVENT_TYPE !== "SessionStart") return [];
+      out = execFileSync(
+        "powershell.exe",
+        ["-NoProfile", "-Command", "Get-CimInstance Win32_Process | ForEach-Object { '{0} {1}' -f $_.ParentProcessId, $_.ProcessId }"],
+        { timeout: 4000, windowsHide: true }
+      ).toString();
+    }
+    const parent = new Map(); // pid → ppid
+    for (const line of out.split(/\r?\n/)) {
+      const m = line.trim().match(/^(\d+)\s+(\d+)$/);
+      if (m) parent.set(Number(m[2]), Number(m[1]));
+    }
+    const chain = [];
+    const seen = new Set([process.pid]);
+    let cur = parent.get(process.pid);
+    while (cur && !seen.has(cur) && chain.length < 15) {
+      chain.push(cur);
+      seen.add(cur);
+      cur = parent.get(cur);
+    }
+    return chain;
+  } catch {
+    return [];
+  }
+}
+
 // ── Main ────────────────────────────────────
 
 let input = "";
@@ -197,6 +242,15 @@ process.stdin.on("end", () => {
       data.event_type = EVENT_TYPE;
       data.timestamp = Date.now();
       data.hostname = os.hostname();
+
+      // Attach ancestor pids so the server can focus the exact window
+      if (
+        os.platform() === "win32" &&
+        (EVENT_TYPE === "SessionStart" || EVENT_TYPE === "UserPromptSubmit")
+      ) {
+        const pids = getAncestorPids();
+        if (pids.length) data.ancestor_pids = pids;
+      }
 
       // On Stop events, parse transcript for token usage
       if (EVENT_TYPE === "Stop" && data.session_id && data.cwd) {

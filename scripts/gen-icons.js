@@ -140,3 +140,19 @@ for (const [name, size] of [["apple-touch-icon.png", 180], ["icon-512.png", 512]
   fs.writeFileSync(file, encodePng(render(size), size));
   console.log(`  wrote ${name} (${size}x${size}, ${fs.statSync(file).size} bytes)`);
 }
+
+// ── Badged tab icons ─────────────────────────
+// The dashboard swaps the tab icon for one of these when something is
+// waiting on the user (amber) or a task finished while they were looking
+// elsewhere (green). Generated from favicon.svg so one edit reaches all
+// three, and kept as SVG so the dot stays crisp at 16px.
+const BADGE_COLORS = { attention: "#f59e0b", done: "#22c55e" };
+const baseSvg = fs.readFileSync(path.join(OUT_DIR, "favicon.svg"), "utf8");
+for (const [name, color] of Object.entries(BADGE_COLORS)) {
+  const badge =
+    `  <circle cx="23" cy="9" r="7.5" fill="#0a0a0c"/>\n` +
+    `  <circle cx="23" cy="9" r="5.5" fill="${color}"/>\n`;
+  const file = path.join(OUT_DIR, `favicon-${name}.svg`);
+  fs.writeFileSync(file, baseSvg.replace("</svg>", badge + "</svg>"));
+  console.log(`  wrote favicon-${name}.svg`);
+}

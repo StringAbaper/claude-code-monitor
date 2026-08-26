@@ -446,6 +446,31 @@ function playAlert(){try{const c=ensureAudio(),n=c.currentTime,o=c.createOscilla
 function playComplete(){try{const c=ensureAudio(),n=c.currentTime;[523.25,659.25,783.99].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.connect(g);g.connect(c.destination);o.frequency.setValueAtTime(f,n+i*.12);g.gain.setValueAtTime(.18,n+i*.12);g.gain.exponentialRampToValueAtTime(.01,n+i*.12+.35);o.start(n+i*.12);o.stop(n+i*.12+.35)})}catch{}}
 function notify(t,b){try{if(Notification.permission==='granted')new Notification(t,{body:b,tag:'cm-'+Date.now()})}catch{}}
 
+// ── Tab badge ──
+// The tab icon carries a dot so a background tab still says something is
+// up: amber when a permission or a question is waiting on you, green when
+// a task finished while you were looking elsewhere. The three icons are
+// generated from one source by scripts/gen-icons.js.
+const TAB_ICONS={none:'/favicon.svg',attention:'/favicon-attention.svg',done:'/favicon-done.svg'};
+function setTabIcon(kind,count){
+  const href=TAB_ICONS[kind]||TAB_ICONS.none;
+  const link=document.querySelector('link[rel="icon"]');
+  if(link&&link.getAttribute('href')!==href){
+    // Several browsers only pick up a new tab icon when the element itself
+    // is replaced, not when href is mutated in place.
+    const next=link.cloneNode(true);
+    next.setAttribute('href',href);
+    link.parentNode.replaceChild(next,link);
+  }
+  // Installed to a home screen or a dock: the OS can show a real badge.
+  try{
+    if(kind==='none'){if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{})}
+    else if(navigator.setAppBadge)navigator.setAppBadge(count>0?count:undefined).catch(()=>{});
+  }catch{}
+}
+// A tab the user is actually looking at does not need to be flagged.
+function tabIsWatched(){return !document.hidden&&document.hasFocus()}
+
 // ── Login Screen ──
 function LoginScreen({onLogin}){
   const[pw,setPw]=useState('');
@@ -1030,6 +1055,7 @@ function App(){
   const[updateInfo,setUpdateInfo]=useState({});
   const[anomalyState,setAnomalyState]=useState(null);
   const[anomalyToast,setAnomalyToast]=useState(null);
+  const[taskDone,setTaskDone]=useState(false);
   const[uiSkin,setUiSkinLocal]=useState(()=>localStorage.getItem('cm-skin')||'default');
   const setUiSkin=useCallback(v=>{
     if(!['default','linear','sentry','raycast','claude'].includes(v))return;
@@ -1058,11 +1084,22 @@ function App(){
   useEffect(()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()},[]);
   useEffect(()=>{const t=setInterval(()=>setTick(k=>k+1),5e3);return()=>clearInterval(t)},[]);
 
-  // Tab title
+  // Tab title + icon badge. Something waiting on you outranks something
+  // that merely finished.
   useEffect(()=>{
     const n=pending.filter(a=>a.status==='pending').length+sessions.filter(s=>s.status==='waiting_permission').length;
-    document.title=n>0?'('+n+') Claude Code Monitor':'Claude Code Monitor';
-  },[sessions,pending]);
+    document.title=n>0?'('+n+') Claude Code Monitor':taskDone?'✓ Claude Code Monitor':'Claude Code Monitor';
+    setTabIcon(n>0?'attention':taskDone?'done':'none',n);
+  },[sessions,pending,taskDone]);
+
+  // The "finished" dot is a message to someone who was looking elsewhere —
+  // it clears the moment they come back to the tab.
+  useEffect(()=>{
+    const clear=()=>{if(tabIsWatched())setTaskDone(false)};
+    window.addEventListener('focus',clear);
+    document.addEventListener('visibilitychange',clear);
+    return()=>{window.removeEventListener('focus',clear);document.removeEventListener('visibilitychange',clear)};
+  },[]);
 
   // Auto-select first session or session with new approval
   useEffect(()=>{
@@ -1098,6 +1135,7 @@ function App(){
         if(d.alert.type==='complete'){
           if(sound)playComplete();
           notify('Task Complete',d.alert.session.project+' — '+d.alert.detail);
+          if(!tabIsWatched())setTaskDone(true);
         } else {
           if(sound)playAlert();
         }

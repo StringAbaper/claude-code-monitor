@@ -131,6 +131,7 @@ Now use Claude Code normally in any VS Code window or terminal — sessions will
 - **Remote Approval** toggle — Enable/disable remote tool approval interception (default: ON)
 - **Auto-Approve** toggle — Auto-allow all permission requests (shows "Allow Dangerous Permission" warning)
 - **Sound** toggle — Enable/disable audio alerts for new approvals
+- **Tab badge** — Amber dot on the tab icon when something is waiting on you, green when a task finished while the tab was in the background
 - **Light/Dark mode** — Toggle theme (sun/moon button in header)
 - **Focus Window** / `↗` on a sidebar tile — Bring the session's IDE/terminal window to the foreground, alt-tab style (window state untouched)
 - **Clear** — Remove stopped sessions from the list
@@ -282,9 +283,14 @@ Read, Glob, Grep, TodoWrite, TaskOutput, Skill, ToolSearch
 
 These read-only tools are never intercepted, even when remote approval is enabled. Edit the `SAFE_TOOLS` set in `lib/tools.js` to customize.
 
-### Icons
+### Icons and the tab badge
 
-`public/favicon.svg` is the source of truth for the dashboard icon. `apple-touch-icon.png` and `icon-512.png` (used by iOS "Add to Home Screen" and the web manifest) are generated from the same geometry by `node scripts/gen-icons.js` — re-run it after editing the SVG.
+`public/favicon.svg` is the source of truth for the dashboard icon. Everything else is generated from it by `node scripts/gen-icons.js` — re-run it after editing the SVG:
+
+- `apple-touch-icon.png`, `icon-512.png` — iOS "Add to Home Screen" and the web manifest
+- `favicon-attention.svg`, `favicon-done.svg` — the badged tab icons
+
+The dashboard swaps the tab icon so a background tab still says something is up: an **amber dot** when a permission or a question is waiting on you (with the count in the tab title), a **green dot** when a task finished while you were looking elsewhere. The green dot clears as soon as you come back to the tab; the amber one stays until the request is answered. Installed to a home screen or a dock, the same states drive a real OS badge through the Badging API.
 
 ## Troubleshooting
 

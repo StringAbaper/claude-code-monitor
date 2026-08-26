@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.7.2 (2026-08-26)
+
+### A dot on the browser tab
+
+The tab already carried a `(2)` count in its title, which is invisible on a narrow tab. The tab **icon** now carries the signal:
+
+| | Tab icon | Title |
+| --- | --- | --- |
+| A permission or a question is waiting on you | amber dot | `(2) Claude Code Monitor` |
+| A task finished while you were looking elsewhere | green dot | `✓ Claude Code Monitor` |
+| Nothing pending | plain | `Claude Code Monitor` |
+
+- Something waiting on you outranks something that merely finished
+- The "finished" dot is only raised when the tab is not the one you are looking at, and clears the moment you come back to it. A waiting permission stays until it is answered
+- Installed to a phone home screen or a desktop dock, the same states drive a real OS badge via the Badging API — with the pending count on it where the platform supports one
+- `favicon-attention.svg` / `favicon-done.svg` are generated from `favicon.svg` by `node scripts/gen-icons.js`, and a test fails if they drift from it
+
+### A session abandoned mid-prompt no longer pins the badge
+
+A session left in `waiting_permission` was never aged out, so a closed terminal or a killed process kept the dashboard flagged for good. It now goes to `stopped` after an hour with no event — the same rule idle sessions already followed. A live prompt is untouched: it can sit for as long as it needs.
+
 ## v1.7.1 (2026-08-26)
 
 ### Window focus behaves like alt-tab

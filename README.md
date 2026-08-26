@@ -45,7 +45,7 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 | **Linux (GNOME Wayland)** | gdbus + GNOME Shell Eval | No extra packages needed on GNOME. |
 | **Linux (KDE Wayland)** | qdbus + KWin | No extra packages needed on KDE Plasma. |
 
-Window matching uses multiple search terms (project name, cwd path variants) with case-insensitive matching, and prioritizes VS Code > Terminal > other windows.
+Window matching walks the visible windows and scores them. A window belonging to a process the session was launched from wins outright; among those — every VS Code window of one instance reports the same pid — the tie is broken by *which* search term the title matches, ranked from the launch directory down to the directory the session has since wandered into. Failing any process match, a title match is scored VS Code > Terminal > other. Explorer is never focused: its title is just a folder name, and it is an ancestor of every session started from the shell.
 
 Focus follows alt-tab semantics: the window comes forward with its state untouched. A maximized or fullscreen window stays that way; only a minimized one is restored.
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.9.1 (2026-08-26)
+
+### Focus the window the session is actually in
+
+**Focus Window** on a session that had cd'd out of its project focused the window of the project it had wandered into. Every VS Code window of one instance reports the same main-process pid, so the pid — the strong signal the scorer leans on — could not tell the four open windows apart, and the flat +100 bonus for "the title matched a search term" scored the launch directory and the current directory exactly alike. The tie fell to z-order, which is to say to the window that was in front anyway.
+
+- Search terms are now ranked, and a match on an earlier term outscores a match on a later one. The launch directory and its path variants come first, the current directory and its own last — so a session started in `ABAP/TEST` and standing in `ABAP/SAPTools` focuses its **TEST** window
+- Explorer windows are skipped whatever their score. `explorer.exe` is an ancestor of every session launched from the shell, and a folder window named after the project was one point away from beating the editor
+- A search term that sanitizes down to nothing is dropped rather than sent on to match every title on the desktop
+
 ## v1.9.0 (2026-08-26)
 
 ### Sessions are named after their project, not after wherever they are standing

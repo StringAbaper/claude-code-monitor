@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.7.4 (2026-08-26)
+
+### Fix: an answered card could be swept away before the hook read the answer
+
+Clicking **Allow** marks the approval decided; cleanup then ran on its own five-second tick and deleted it. The hook polls every 400 ms, so a poll landing after that delete read `expired` — which the hook takes as *nobody answered*. It exited silently and the prompt it was holding open never learned it had been allowed. From the dashboard the click looked like it worked; in the editor the prompt was still sitting there.
+
+An answered approval is now kept for 30 seconds, or until the hook confirms it passed the answer on.
+
+### The dashboard says whether an answer actually landed
+
+Recording a click and delivering it to Claude Code are two different things, and only the first was ever visible. The hook now confirms delivery (`POST /api/pending/:id/delivered`), which is the only proof the loop closed.
+
+- An answer no hook collected is marked **NOT APPLIED** on the timeline instead of **ALLOWED**, and raises a notification — the session is still waiting on its own prompt and only the terminal can answer it now
+- `ALLOWED` / `DENIED` now mean the session really was told
+
+### Tracing
+
+`node install-hooks.js --log=<path>` makes the hook record what it did with each approval — intercepted, answer read, decision written, or gave up and why. The hook runs detached and its stdout belongs to Claude Code, so there was previously no way to see any of this. Off by default.
+
 ## v1.7.3 (2026-08-26)
 
 ### Fix: an approval card could die while its prompt was still waiting

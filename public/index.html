@@ -1016,9 +1016,13 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
             const ac=ev.approval;
             const isCmp=ev.type==='Stop';
             const isDenied=ev.type==='PermissionDenied';
-            const evCls='ev'+(ac==='auto'?' ev-auto':ac==='user_allow'?' ev-user-allow':ac==='user_deny'||isDenied?' ev-user-deny':ac==='pending'?' ev-pending':isCmp?' ev-complete':'');
-            const tagCls=ac==='auto'?'auto':ac==='user_allow'?'user-allow':ac==='user_deny'||isDenied?'user-deny':ac==='pending'?'pending':isCmp?'complete':null;
-            const tagText=ac==='auto'?'AUTO':ac==='user_allow'?'ALLOWED':ac==='user_deny'||isDenied?'DENIED':ac==='pending'?'PENDING':isCmp?'DONE':null;
+            // The dashboard recorded an answer but no hook ever collected
+            // it, so the session never learned it. Saying "ALLOWED" here
+            // would be a lie the user acts on.
+            const undelivered=ev.delivered===false&&(ac==='user_allow'||ac==='user_deny');
+            const evCls='ev'+(undelivered?' ev-user-deny':ac==='auto'?' ev-auto':ac==='user_allow'?' ev-user-allow':ac==='user_deny'||isDenied?' ev-user-deny':ac==='pending'?' ev-pending':isCmp?' ev-complete':'');
+            const tagCls=undelivered?'user-deny':ac==='auto'?'auto':ac==='user_allow'?'user-allow':ac==='user_deny'||isDenied?'user-deny':ac==='pending'?'pending':isCmp?'complete':null;
+            const tagText=undelivered?'NOT APPLIED':ac==='auto'?'AUTO':ac==='user_allow'?'ALLOWED':ac==='user_deny'||isDenied?'DENIED':ac==='pending'?'PENDING':isCmp?'DONE':null;
             // A permission event is about the question, not the tool call, so
             // it is labelled as such — the tool itself is in the detail.
             const evType=ev.type==='PermissionRequest'?'Permission':isDenied?'Permission':(ev.tool||ev.type);
@@ -1143,6 +1147,7 @@ function App(){
           if(sound)playAlert();
         }
         if(d.alert.type==='permission')notify('Permission Required',d.alert.session.project+' needs permission');
+        if(d.alert.type==='undelivered')notify('Answer not applied',d.alert.session.project+' — '+d.alert.detail+' is still waiting in the terminal');
         if(d.alert.type==='approval'){
           notify('Approval Required',d.alert.approval.toolName+' in '+d.alert.approval.project);
           setSelectedId(d.alert.approval.sessionId);setMobileDetail(true);

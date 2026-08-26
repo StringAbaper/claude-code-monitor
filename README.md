@@ -75,6 +75,18 @@ If nobody answers on the dashboard, the hook stays silent and Claude Code falls 
 
 A card stays answerable for as long as the hook behind it is still waiting (up to 9 minutes, then Claude Code's own prompt takes over). It disappears within ~15 seconds of that hook going away — because it was answered in the terminal, or because Claude Code timed it out. There is no separate card expiry: if a card is on screen, its buttons work.
 
+Recording a click and delivering it to the session are different things, so the hook confirms delivery back to the server. The timeline says **ALLOWED** / **DENIED** only when the session really was told; an answer no hook collected shows as **NOT APPLIED**, with a notification — the prompt is still waiting in the terminal and only the terminal can answer it now.
+
+### Tracing a remote approval
+
+The hook runs detached and its stdout belongs to Claude Code, so what it did with an approval is otherwise invisible. Re-run the installer with a log path to record it:
+
+```bash
+node install-hooks.js --log=/path/to/hook.log
+```
+
+Each approval writes what happened — intercepted, answer read, decision written, or gave up and why. Off by default; re-run without `--log` to turn it back off.
+
 `PermissionRequest` fires **only** on the ask path. A tool call that a permission rule already allows, or that the session's permission mode settles on its own, never reaches the dashboard — which is the point. Safe/read-only tools (Read, Glob, Grep, TodoWrite, etc.) are skipped as well, and so is `AskUserQuestion`, whose prompt needs a choice rather than an allow/deny.
 
 The session's **permission mode** is shown in the dashboard (sidebar badge + `Permissions` row), because it decides whether approvals can happen at all:

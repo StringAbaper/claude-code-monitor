@@ -47,6 +47,18 @@ const SAFETY_EXIT_MS = 570_000;
 // readable copy on disk would be a credential exposure with no benefit.
 const API_TOKEN = process.env.CLAUDE_MONITOR_TOKEN || "";
 
+// Optional trace. This process runs detached and its stdout belongs to
+// Claude Code, so there is otherwise no way to see what it decided or why
+// it stayed silent. Enable with CLAUDE_MONITOR_LOG=<path>, which
+// install-hooks.js --log=<path> bakes into the hook commands.
+const LOG_PATH = process.env.CLAUDE_MONITOR_LOG || "";
+function log(line) {
+  if (!LOG_PATH) return;
+  try {
+    fs.appendFileSync(LOG_PATH, `${new Date().toISOString()} ${EVENT_TYPE} ${line}${os.EOL}`);
+  } catch {}
+}
+
 // Events that can hold the tool open while the dashboard is asked.
 const CAN_INTERCEPT =
   !OBSERVE_ONLY && (EVENT_TYPE === "PermissionRequest" || EVENT_TYPE === "PreToolUse");
@@ -136,12 +148,17 @@ function pollDecision(approvalId) {
   return new Promise((resolve) => {
     const start = Date.now();
     function check() {
-      if (Date.now() - start > MAX_POLL_MS) return resolve(null);
+      const waited = Date.now() - start;
+      if (waited > MAX_POLL_MS) {
+        log(`poll timed out after ${waited}ms`);
+        return resolve(null);
+      }
       httpGet(`/api/pending/${approvalId}`).then((r) => {
         if (r.status === "decided") resolve(r.decision);
-        else if (r.status === "expired" || r.status === "cancelled")
+        else if (r.status === "expired" || r.status === "cancelled") {
+          log(`server says ${r.status} after ${waited}ms`);
           resolve(null);
-        else setTimeout(check, POLL_INTERVAL);
+        } else setTimeout(check, POLL_INTERVAL);
       });
     }
     check();
@@ -320,11 +337,22 @@ process.stdin.on("end", () => {
 
       // Remote approval: if server says intercept, poll for decision
       if (CAN_INTERCEPT && response.intercept && response.approval_id) {
+        log("intercept approval_id=" + response.approval_id + " tool=" + data.tool_name);
         const decision = await pollDecision(response.approval_id);
         const output = decisionOutput(decision);
-        if (output) process.stdout.write(JSON.stringify(output));
-        // If null (timeout / cancelled), exit without output → falls through
-        // to Claude Code's own permission prompt.
+        if (output) {
+          process.stdout.write(JSON.stringify(output));
+          log("wrote decision=" + decision);
+          // Tell the server the answer actually left here. A dashboard that
+          // records a click it cannot prove was delivered is worse than one
+          // that admits the loop did not close.
+          await httpPost(`/api/pending/${response.approval_id}/delivered`, { decision });
+        } else {
+          // No answer, or the approval was cancelled/expired: stay silent
+          // and let Claude Code's own prompt — which has been on screen the
+          // whole time — take it.
+          log("gave up without a decision");
+        }
       }
 
       process.exit(0);

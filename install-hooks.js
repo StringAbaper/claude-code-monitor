@@ -11,6 +11,11 @@ const os = require("os");
 const REMOVE = process.argv.includes("--remove");
 const URL_ARG = process.argv.find(a => a.startsWith("--url="));
 const TOKEN_ARG = process.argv.find(a => a.startsWith("--token="));
+// --log=<path> traces what the hook did with each approval. Off by default;
+// worth turning on when a remote approval does not seem to land, since the
+// hook's stdout goes to Claude Code and is invisible otherwise.
+const LOG_ARG = process.argv.find(a => a.startsWith("--log="));
+const MONITOR_LOG = LOG_ARG ? LOG_ARG.split("=").slice(1).join("=") : null;
 const MONITOR_URL = URL_ARG ? URL_ARG.split("=").slice(1).join("=") : null;
 let MONITOR_TOKEN = TOKEN_ARG ? TOKEN_ARG.split("=").slice(1).join("=") : null;
 
@@ -105,6 +110,7 @@ if (REMOVE) {
     const envParts = [];
     if (MONITOR_URL) envParts.push(`CLAUDE_MONITOR_URL=${MONITOR_URL}`);
     if (MONITOR_TOKEN) envParts.push(`CLAUDE_MONITOR_TOKEN=${MONITOR_TOKEN}`);
+    if (MONITOR_LOG) envParts.push(`CLAUDE_MONITOR_LOG=${MONITOR_LOG}`);
     const envPrefix = envParts.length > 0 ? envParts.join(" ") + " " : "";
     const command = `${envPrefix}node "${HANDLER_PATH}" ${event}${flags}`;
     settings.hooks[event].push({

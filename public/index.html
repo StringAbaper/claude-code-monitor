@@ -153,7 +153,10 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .si-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
 .si-name{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .si-name>div:last-child{overflow:hidden;text-overflow:ellipsis}
-.si-project{font-size:10px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-sub{font-size:10px;color:var(--text-dim);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.si-focus{background:none;border:1px solid var(--border);color:var(--text-dim);width:20px;height:20px;border-radius:5px;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.45;transition:all var(--dur) var(--ease)}
+.si:hover .si-focus,.si.selected .si-focus{opacity:1}
+.si-focus:hover{color:var(--blue);border-color:rgba(59,130,246,0.4)}
 .si-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 .si-dot.working{background:var(--green);box-shadow:0 0 4px var(--green)}
 .si-dot.waiting_permission{background:var(--amber);animation:blink 1.2s ease-in-out infinite}
@@ -426,6 +429,11 @@ const PERM_MODES={
   dontAsk:{short:'NO ASK',label:'Don’t ask — refused instead of asked',ask:false},
 };
 function permMode(m){return PERM_MODES[m]||(m?{short:String(m).toUpperCase().slice(0,8),label:m,ask:true}:null)}
+// Focusing a window is done by the server, on its own machine — so it is
+// only offered when the dashboard is open on that same machine.
+function canFocusSession(s,serverHostname){
+  return !!s&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&s.hostname===serverHostname;
+}
 function fmtTokens(n){if(!n)return'0';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(n)}
 function fmtCountdown(ms){if(ms==null||ms<0)return'';const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>0)return h+'h '+m+'m';if(m>0)return m+'m';return Math.max(1,s)+'s'}
 function totalTokens(u){return(u?.input_tokens||0)+(u?.output_tokens||0)+(u?.cache_read_input_tokens||0)+(u?.cache_creation_input_tokens||0)}
@@ -468,18 +476,20 @@ function LoginScreen({onLogin}){
 }
 
 // ── Sidebar Item ──
-function SidebarItem({s, selected, approvalCount, onClick}){
+function SidebarItem({s, selected, approvalCount, canFocus, onFocus, onClick}){
   const pm=permMode(s.permissionMode);
   return html`
     <div className=${`si ${selected?'selected':''} ${approvalCount>0?'has-approval':''}`} onClick=${onClick}>
       <div className="si-top">
-        <div className="si-name" title=${s.title||s.project}>
+        <div className="si-name" title=${s.cwd||s.project}>
           <div className=${`si-dot ${s.status}`}></div>
-          ${s.title||s.project}
+          ${s.project}
         </div>
         <span className=${`si-badge ${s.status}`}>${STATUS[s.status]||s.status}</span>
+        ${canFocus&&html`<button className="si-focus" title="Bring the session window to the front"
+          onClick=${e=>{e.stopPropagation();onFocus(s.id)}}>↗</button>`}
       </div>
-      ${s.title&&html`<div className="si-project">${s.project}</div>`}
+      ${s.title&&html`<div className="si-sub" title=${s.title}>${s.title}</div>`}
       <div className="si-activity">${s.activityText||'No activity'}</div>
       <div className="si-meta">
         <span>${timeAgo(s.lastActivity)}</span>
@@ -899,7 +909,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
           :html`<div className="detail-title" title="Click to rename" onClick=${startEdit}>${s.title||s.project}</div>`}
         <div className="detail-actions">
           <button className="btn-back" onClick=${onBack}>Back</button>
-          ${/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&s.hostname===serverHostname&&html`
+          ${canFocusSession(s,serverHostname)&&html`
             <button className="btn-focus" onClick=${()=>onFocus(s.id)} title="Focus the session window">Focus Window</button>
           `}
           <button className="btn-remove" onClick=${()=>onRemove(s.id)}>Remove</button>
@@ -1215,6 +1225,8 @@ function App(){
                     key=${s.id} s=${s}
                     selected=${s.id===selectedId}
                     approvalCount=${approvalCounts[s.id]||0}
+                    canFocus=${canFocusSession(s,serverHost)}
+                    onFocus=${focusSession}
                     onClick=${()=>{setSelectedId(s.id);setMobileDetail(true);setShowSettings(false)}}
                   />
                 `)}

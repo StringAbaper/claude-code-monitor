@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.7.1 (2026-08-26)
+
+### Window focus behaves like alt-tab
+
+Focusing a session used to send `SW_RESTORE` unconditionally, so a maximized window came forward un-maximized. It is now only sent to a window that is actually minimized — a maximized or fullscreen window keeps its state, which is what alt-tab does.
+
+- **Focus from the sidebar tile**: a `↗` button on each tile, no need to open the session first. Shown, like the detail-panel button, only when the dashboard is open on the machine running the server (focus is executed there)
+
+### Sidebar tiles lead with the working directory
+
+The tile showed the Claude session title first and the directory underneath. That is now the other way round: the working directory is the headline, the session title the second line. The directory is what identifies a session at a glance when several are running.
+
 ## v1.7.0 (2026-08-26)
 
 ### Approvals now follow Claude Code's real permission flow

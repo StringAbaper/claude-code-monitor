@@ -46,6 +46,10 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 
 Window matching uses multiple search terms (project name, cwd path variants) with case-insensitive matching, and prioritizes VS Code > Terminal > other windows.
 
+Focus follows alt-tab semantics: the window comes forward with its state untouched. A maximized or fullscreen window stays that way; only a minimized one is restored.
+
+Focus is available from the `↗` button on a sidebar tile and from **Focus Window** in the session detail. Both appear only when the dashboard is open on the machine running the server — the server is what executes the focus, so it cannot reach a window on the device you are browsing from.
+
 ## How It Works
 
 Claude Code Monitor uses the [Claude Code hooks system](https://docs.anthropic.com/en/docs/claude-code/hooks) to receive events from all running Claude Code instances:
@@ -128,7 +132,7 @@ Now use Claude Code normally in any VS Code window or terminal — sessions will
 - **Auto-Approve** toggle — Auto-allow all permission requests (shows "Allow Dangerous Permission" warning)
 - **Sound** toggle — Enable/disable audio alerts for new approvals
 - **Light/Dark mode** — Toggle theme (sun/moon button in header)
-- **Focus Window** — Bring the session's IDE/terminal window to the foreground
+- **Focus Window** / `↗` on a sidebar tile — Bring the session's IDE/terminal window to the foreground, alt-tab style (window state untouched)
 - **Clear** — Remove stopped sessions from the list
 
 ## LAN / Multi-Machine Setup

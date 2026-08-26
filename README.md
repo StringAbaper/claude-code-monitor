@@ -57,19 +57,34 @@ Claude Code Monitor uses the [Claude Code hooks system](https://docs.anthropic.c
 
 ### Remote Approval Flow
 
-When "Remote Approval" is enabled, non-safe tool calls (Bash, Edit, Write, WebFetch, etc.) are intercepted:
+When "Remote Approval" is enabled, a permission Claude Code is about to ask you about is mirrored to the dashboard:
 
-1. Claude Code fires a `PreToolUse` hook → hook-handler sends it to the server
+1. Claude Code fires a `PermissionRequest` hook → hook-handler sends it to the server
 2. Server creates a pending approval and returns `{intercept: true, approval_id: "..."}`
 3. Hook-handler enters a polling loop, waiting for a decision (up to 2 minutes)
 4. Dashboard shows an approval card with **Allow** / **Deny** buttons
 5. User clicks a button → server stores the decision → hook-handler receives it
-6. Hook-handler outputs `{"decision": "allow"}` or `{"decision": "deny"}` to stdout
+6. Hook-handler writes the decision to stdout as `hookSpecificOutput.decision`
 7. Claude Code proceeds (or blocks) based on the decision
 
-Safe/read-only tools (Read, Glob, Grep, TodoWrite, etc.) bypass interception entirely.
+If nobody answers on the dashboard, the hook stays silent and Claude Code falls back to its own prompt in the terminal — the terminal prompt is live the whole time, so either side can answer.
+
+`PermissionRequest` fires **only** on the ask path. A tool call that a permission rule already allows, or that the session's permission mode settles on its own, never reaches the dashboard — which is the point. Safe/read-only tools (Read, Glob, Grep, TodoWrite, etc.) are skipped as well, and so is `AskUserQuestion`, whose prompt needs a choice rather than an allow/deny.
+
+The session's **permission mode** is shown in the dashboard (sidebar badge + `Permissions` row), because it decides whether approvals can happen at all:
+
+| Mode | Approvals reach the dashboard? |
+| --- | --- |
+| `default` | Yes — anything no permission rule already covers |
+| `plan` | Yes |
+| `acceptEdits` | Everything except file edits |
+| `auto` | No — Claude Code decides for itself |
+| `bypassPermissions` | No |
+| `dontAsk` | No — refused instead of asked |
 
 When **Auto-Approve** is enabled, all intercepted tools are automatically allowed without manual review.
+
+> **Upgrading from 1.6.x or earlier:** re-run `node install-hooks.js` (or `npm run install-hooks`). Older installs intercept on `PreToolUse` instead, which raises an approval card for every non-safe tool call — including in modes where you were never going to be asked — and holds each call for up to two minutes. The server still supports those installs, filtered by permission mode, until you re-run the installer.
 
 ## Installation
 
@@ -262,6 +277,10 @@ public/index.html           React dashboard (CDN, no build step)
 Read, Glob, Grep, TodoWrite, TaskOutput, Skill, ToolSearch
 
 These read-only tools are never intercepted, even when remote approval is enabled. Edit the `SAFE_TOOLS` set in `lib/tools.js` to customize.
+
+### Icons
+
+`public/favicon.svg` is the source of truth for the dashboard icon. `apple-touch-icon.png` and `icon-512.png` (used by iOS "Add to Home Screen" and the web manifest) are generated from the same geometry by `node scripts/gen-icons.js` — re-run it after editing the SVG.
 
 ## Troubleshooting
 

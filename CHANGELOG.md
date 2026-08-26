@@ -1,5 +1,40 @@
 # Changelog
 
+## v1.7.0 (2026-08-26)
+
+### Approvals now follow Claude Code's real permission flow
+
+The monitor used to raise an approval card from `PreToolUse` — an event Claude Code fires for **every** tool call, whether or not anyone was ever going to be asked. In a session running in `auto` or `bypassPermissions` mode, or on a tool an allow-rule already covers, that produced a stream of approvals for questions nobody was being asked, and each one held the tool for up to two minutes waiting on an answer that was never coming.
+
+Approvals are now raised from the **`PermissionRequest`** hook, which Claude Code fires only when it is actually about to prompt the user.
+
+- New hooks registered: `PermissionRequest` (the only one that waits on a human, 5-minute timeout) and `PermissionDenied`
+- `PreToolUse` is now observe-only: reported for the timeline, 5-second timeout, never blocks a tool call
+- `AskUserQuestion` is no longer intercepted — its prompt needs a choice, not an allow/deny, and Claude Code ignores a hook allow for it anyway
+- A denial (in the terminal, by a rule, or by a guard hook) now closes the matching card immediately instead of leaving it to expire
+- A card whose question got answered elsewhere is **cancelled**, never auto-granted: a hook still polling reads that as "no answer" and falls back to Claude Code's own prompt
+- One prompt now makes one sound: the approval card and the `Notification` Claude Code fires for the same prompt no longer alert twice
+- A session no longer sits on "Permission" after the tool has already run — `PostToolUse` and `PermissionDenied` put it back to working
+
+**Re-run `node install-hooks.js` after upgrading.** Until you do, the server keeps intercepting on `PreToolUse` for that machine, now filtered by the session's permission mode so `auto` / `bypassPermissions` / `dontAsk` no longer produce cards.
+
+### Permission mode is visible
+
+Every hook payload carries the session's `permission_mode`. It is now stored and shown, so a session that raises no approvals reads as deliberate rather than as a monitor that stopped noticing.
+
+- Sidebar badge (`AUTO`, `BYPASS`, `EDITS`, `PLAN`) on any session not in `default`, highlighted when the mode means you will never be asked
+- `Permissions` row in the session detail
+- `worker_permission_prompt` notifications now count as permission alerts alongside `permission_prompt`
+
+### Dashboard icon
+
+- `favicon.svg`, `apple-touch-icon.png`, `icon-512.png` and a web manifest — the dashboard now has a real icon in the browser tab and on a phone home screen
+- PNGs are generated from the SVG geometry by `node scripts/gen-icons.js` (no dependencies)
+
+### Tests
+
+- 23 new tests: permission-mode gating, interception rules, the new event handling, and an end-to-end suite that runs the real hook handler against a stub server to pin both stdout decision shapes
+
 ## v1.6.0 (2026-04-08)
 
 Second stable in the 1.6.x line. Aggregates 12 beta releases.

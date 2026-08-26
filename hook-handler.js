@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 // Hook handler for Claude Code → Claude Code Monitor.
-// Called as: node hook-handler.js <EventType>
+// Called as: node hook-handler.js <EventType> [--observe-only]
 // Reads JSON from stdin, POSTs to the monitor server.
 //
-// For PreToolUse: if server says "intercept", polls for a decision
-// and outputs {"decision":"allow"} or {"decision":"deny"} on stdout.
-// This lets the Dashboard approve/deny permissions remotely.
+// For PermissionRequest — the event Claude Code fires only when it is about
+// to ask the user — if the server says "intercept", this polls for a
+// decision and writes an allow/deny back on stdout. That is what lets the
+// Dashboard answer a permission prompt remotely.
+//
+// PreToolUse can do the same on installs whose settings.json predates the
+// PermissionRequest hook. `--observe-only`, which install-hooks.js adds once
+// it has registered PermissionRequest, turns that off: the event is still
+// reported, but it never holds up the tool.
 //
 // MUST never block or crash — always exits 0.
 
@@ -16,6 +22,7 @@ const path = require("path");
 const os = require("os");
 
 const EVENT_TYPE = process.argv[2] || "Unknown";
+const OBSERVE_ONLY = process.argv.includes("--observe-only");
 const MONITOR_URL = process.env.CLAUDE_MONITOR_URL || "http://127.0.0.1:7888";
 const parsed = new URL(MONITOR_URL);
 const HOST = parsed.hostname;
@@ -31,8 +38,12 @@ const MAX_POLL_MS = 120_000; // 2 minutes
 // readable copy on disk would be a credential exposure with no benefit.
 const API_TOKEN = process.env.CLAUDE_MONITOR_TOKEN || "";
 
-// Safety timeout: 3min for PreToolUse (remote approval), 5s for others
-setTimeout(() => process.exit(0), EVENT_TYPE === "PreToolUse" ? 180_000 : 5_000);
+// Events that can hold the tool open while the dashboard is asked.
+const CAN_INTERCEPT =
+  !OBSERVE_ONLY && (EVENT_TYPE === "PermissionRequest" || EVENT_TYPE === "PreToolUse");
+
+// Safety timeout: 3min while a remote approval may be in flight, 5s otherwise
+setTimeout(() => process.exit(0), CAN_INTERCEPT ? 180_000 : 5_000);
 
 // ── HTTP helpers (promise-based) ────────────
 
@@ -229,6 +240,39 @@ function getAncestorPids() {
   }
 }
 
+// ── Hook output ─────────────────────────────
+// The two interceptable events answer in different shapes: PreToolUse takes
+// a flat permissionDecision, PermissionRequest takes a nested decision
+// object. Returns null when there is nothing to say, which lets Claude Code
+// fall through to its own prompt.
+
+const ALLOW_REASON = "Approved from Claude Code Monitor dashboard";
+const DENY_REASON = "Denied from Claude Code Monitor dashboard";
+
+function decisionOutput(decision) {
+  if (decision !== "allow" && decision !== "deny") return null;
+
+  if (EVENT_TYPE === "PermissionRequest") {
+    return {
+      hookSpecificOutput: {
+        hookEventName: "PermissionRequest",
+        decision:
+          decision === "allow"
+            ? { behavior: "allow" }
+            : { behavior: "deny", message: DENY_REASON },
+      },
+    };
+  }
+
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: decision,
+      permissionDecisionReason: decision === "allow" ? ALLOW_REASON : DENY_REASON,
+    },
+  };
+}
+
 // ── Main ────────────────────────────────────
 
 let input = "";
@@ -242,6 +286,9 @@ process.stdin.on("end", () => {
       data.event_type = EVENT_TYPE;
       data.timestamp = Date.now();
       data.hostname = os.hostname();
+      // Tells the server this install has a PermissionRequest hook, so it
+      // must not raise an approval from PreToolUse as well.
+      if (OBSERVE_ONLY) data.observe_only = true;
 
       // Attach ancestor pids so the server can focus the exact window
       if (
@@ -261,34 +308,12 @@ process.stdin.on("end", () => {
       const response = await httpPost("/api/event", data);
 
       // Remote approval: if server says intercept, poll for decision
-      if (
-        EVENT_TYPE === "PreToolUse" &&
-        response.intercept &&
-        response.approval_id
-      ) {
+      if (CAN_INTERCEPT && response.intercept && response.approval_id) {
         const decision = await pollDecision(response.approval_id);
-        if (decision === "allow") {
-          process.stdout.write(
-            JSON.stringify({
-              hookSpecificOutput: {
-                hookEventName: "PreToolUse",
-                permissionDecision: "allow",
-                permissionDecisionReason: "Approved from Claude Code Monitor dashboard",
-              },
-            })
-          );
-        } else if (decision === "deny") {
-          process.stdout.write(
-            JSON.stringify({
-              hookSpecificOutput: {
-                hookEventName: "PreToolUse",
-                permissionDecision: "deny",
-                permissionDecisionReason: "Denied from Claude Code Monitor dashboard",
-              },
-            })
-          );
-        }
-        // If null (timeout), exit without output → falls through to normal permission prompt
+        const output = decisionOutput(decision);
+        if (output) process.stdout.write(JSON.stringify(output));
+        // If null (timeout / cancelled), exit without output → falls through
+        // to Claude Code's own permission prompt.
       }
 
       process.exit(0);

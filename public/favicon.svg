@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Claude Code Monitor">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1726"/>
+      <stop offset="1" stop-color="#0a0a0c"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="30" height="30" rx="8" fill="url(#bg)" stroke="#8b5cf6" stroke-opacity=".55" stroke-width="1.5"/>
+  <path d="M9.5 11 L15 16 L9.5 21" fill="none" stroke="#a78bfa" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="16.8" y="19.2" width="7" height="3" rx="1.5" fill="#22c55e"/>
+</svg>

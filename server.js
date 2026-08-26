@@ -176,7 +176,9 @@ server.listen(PORT, "0.0.0.0", () => {
   const hasPw = !!store.getDashboardPasswordHash();
   console.log("");
   console.log("  ╔══════════════════════════════════════════════╗");
-  console.log("  ║         Claude Code Monitor v1.4.0           ║");
+  // Read from package.json so the banner cannot drift from the release.
+  const version = require("./package.json").version;
+  console.log(`  ║         Claude Code Monitor v${version}${" ".repeat(Math.max(1, 16 - version.length))}║`);
   console.log(`  ║  Local:   ${proto}://localhost:${PORT}                ║`);
   console.log(`  ║  LAN:     ${proto}://${lanIP}:${PORT}          ║`);
   console.log(`  ║  HTTPS:   ${USE_HTTPS ? "ON" : "OFF (use --https to enable)"}             ║`);

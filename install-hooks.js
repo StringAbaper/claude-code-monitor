@@ -35,11 +35,20 @@ const HOOK_EVENTS = [
   "UserPromptSubmit",
   "PreToolUse",
   "PostToolUse",
+  "PermissionRequest",
+  "PermissionDenied",
   "Notification",
   "Stop",
   "SubagentStart",
   "SubagentStop",
 ];
+
+// PermissionRequest fires only when Claude Code is actually about to ask
+// the user, so it is the one hook that may hold a tool open while the
+// dashboard answers. Everything else reports and gets out of the way.
+const APPROVAL_EVENT = "PermissionRequest";
+const APPROVAL_TIMEOUT_MS = 300_000;
+const REPORT_TIMEOUT_MS = 5_000;
 
 // Read existing settings
 let settings = {};
@@ -85,13 +94,17 @@ if (REMOVE) {
       }
     );
 
-    // PreToolUse needs long timeout for remote approval polling
-    const timeout = event === "PreToolUse" ? 300000 : 5000;
+    // Only the approval hook waits on a human; the rest must not delay a
+    // tool call. PreToolUse is marked observe-only so it reports the call
+    // without also raising an approval the PermissionRequest hook owns.
+    const isApproval = event === APPROVAL_EVENT;
+    const timeout = isApproval ? APPROVAL_TIMEOUT_MS : REPORT_TIMEOUT_MS;
+    const flags = event === "PreToolUse" ? " --observe-only" : "";
     const envParts = [];
     if (MONITOR_URL) envParts.push(`CLAUDE_MONITOR_URL=${MONITOR_URL}`);
     if (MONITOR_TOKEN) envParts.push(`CLAUDE_MONITOR_TOKEN=${MONITOR_TOKEN}`);
     const envPrefix = envParts.length > 0 ? envParts.join(" ") + " " : "";
-    const command = `${envPrefix}node "${HANDLER_PATH}" ${event}`;
+    const command = `${envPrefix}node "${HANDLER_PATH}" ${event}${flags}`;
     settings.hooks[event].push({
       matcher: "",
       hooks: [

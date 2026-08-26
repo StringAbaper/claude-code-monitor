@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Code Monitor</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#0a0a0a">
 <style>
 :root, [data-theme="dark"] {
   --bg: #0a0a0a;
@@ -163,6 +167,9 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .si-activity{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-meta{display:flex;gap:8px;font-size:10px;color:var(--text-dim);margin-top:2px}
 .approval-badge{background:var(--amber);color:#000;font-size:9px;font-weight:700;padding:0 5px;border-radius:3px;margin-left:auto}
+.si-mode{font-size:9px;font-weight:700;letter-spacing:0.3px;padding:0 4px;border-radius:3px;border:1px solid var(--border-light);color:var(--text-dim)}
+.si-mode.no-ask{color:var(--purple);border-color:var(--purple)}
+.perm-mode.no-ask{color:var(--purple)}
 
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 
@@ -407,6 +414,18 @@ function clockTime(ts){return new Date(ts).toLocaleTimeString([],{hour:'2-digit'
 function duration(ms){const m=ms/6e4|0;if(m<60)return m+'m';return(m/60|0)+'h '+(m%60)+'m'}
 
 const STATUS={working:'Working',waiting_permission:'Permission',idle:'Idle',stopped:'Stopped',unknown:'Unknown'};
+// How Claude Code is deciding permissions in this session. `ask:false` means
+// nothing in this session will ever reach the dashboard as an approval —
+// which is why a busy session can sit here without raising a single one.
+const PERM_MODES={
+  default:{short:'DEFAULT',label:'Default — asks when a rule does not already allow it',ask:true},
+  plan:{short:'PLAN',label:'Plan — asks before leaving the plan',ask:true},
+  acceptEdits:{short:'EDITS',label:'Accept edits — file edits run silently, the rest still asks',ask:true},
+  auto:{short:'AUTO',label:'Auto — Claude Code decides for itself, you are never asked',ask:false},
+  bypassPermissions:{short:'BYPASS',label:'Bypass — nothing is ever asked',ask:false},
+  dontAsk:{short:'NO ASK',label:'Don’t ask — refused instead of asked',ask:false},
+};
+function permMode(m){return PERM_MODES[m]||(m?{short:String(m).toUpperCase().slice(0,8),label:m,ask:true}:null)}
 function fmtTokens(n){if(!n)return'0';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(n)}
 function fmtCountdown(ms){if(ms==null||ms<0)return'';const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>0)return h+'h '+m+'m';if(m>0)return m+'m';return Math.max(1,s)+'s'}
 function totalTokens(u){return(u?.input_tokens||0)+(u?.output_tokens||0)+(u?.cache_read_input_tokens||0)+(u?.cache_creation_input_tokens||0)}
@@ -450,6 +469,7 @@ function LoginScreen({onLogin}){
 
 // ── Sidebar Item ──
 function SidebarItem({s, selected, approvalCount, onClick}){
+  const pm=permMode(s.permissionMode);
   return html`
     <div className=${`si ${selected?'selected':''} ${approvalCount>0?'has-approval':''}`} onClick=${onClick}>
       <div className="si-top">
@@ -464,6 +484,7 @@ function SidebarItem({s, selected, approvalCount, onClick}){
       <div className="si-meta">
         <span>${timeAgo(s.lastActivity)}</span>
         <span>${s.eventCount} events</span>
+        ${pm&&pm.short!=='DEFAULT'&&html`<span className=${`si-mode${pm.ask?'':' no-ask'}`} title=${pm.label}>${pm.short}</span>`}
         ${totalTokens(s.usage)>0&&html`<span>${fmtTokens(totalTokens(s.usage))} tok</span>`}
         ${approvalCount>0&&html`<span className="approval-badge">${approvalCount}</span>`}
       </div>
@@ -861,6 +882,10 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
   `;
 
   const sessionApprovals = approvals.filter(a=>a.sessionId===s.id && a.status==='pending');
+  const pm=permMode(s.permissionMode);
+  const permRow=pm
+    ?html`<span className=${pm.ask?'perm-mode':'perm-mode no-ask'}>${pm.label}</span>`
+    :'Unknown';
 
   return html`
     <div className="detail">
@@ -891,6 +916,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
             <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
               <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
               <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
+              <dt>Permissions</dt><dd>${permRow}</dd>
               <dt>Events</dt><dd>${s.eventCount}</dd>
               ${totalTokens(s.usage)>0&&html`
                 <dt>Tokens</dt>
@@ -912,6 +938,7 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
             <dt>Path</dt><dd title=${s.cwd}>${s.cwd}</dd>
             <dt>Started</dt><dd>${clockTime(s.startedAt)} (${duration(Date.now()-s.startedAt)})</dd>
             <dt>Last active</dt><dd>${timeAgo(s.lastActivity)}</dd>
+            <dt>Permissions</dt><dd>${permRow}</dd>
             <dt>Events</dt><dd>${s.eventCount}</dd>
             ${totalTokens(s.usage)>0&&html`
               <dt>Tokens</dt>
@@ -950,13 +977,17 @@ function DetailPanel({s, approvals, onDecide, onFocus, onRemove, onRename, onBac
           ${s.recentEvents.map((ev,i)=>{
             const ac=ev.approval;
             const isCmp=ev.type==='Stop';
-            const evCls='ev'+(ac==='auto'?' ev-auto':ac==='user_allow'?' ev-user-allow':ac==='user_deny'?' ev-user-deny':ac==='pending'?' ev-pending':isCmp?' ev-complete':'');
-            const tagCls=ac==='auto'?'auto':ac==='user_allow'?'user-allow':ac==='user_deny'?'user-deny':ac==='pending'?'pending':isCmp?'complete':null;
-            const tagText=ac==='auto'?'AUTO':ac==='user_allow'?'ALLOWED':ac==='user_deny'?'DENIED':ac==='pending'?'PENDING':isCmp?'DONE':null;
+            const isDenied=ev.type==='PermissionDenied';
+            const evCls='ev'+(ac==='auto'?' ev-auto':ac==='user_allow'?' ev-user-allow':ac==='user_deny'||isDenied?' ev-user-deny':ac==='pending'?' ev-pending':isCmp?' ev-complete':'');
+            const tagCls=ac==='auto'?'auto':ac==='user_allow'?'user-allow':ac==='user_deny'||isDenied?'user-deny':ac==='pending'?'pending':isCmp?'complete':null;
+            const tagText=ac==='auto'?'AUTO':ac==='user_allow'?'ALLOWED':ac==='user_deny'||isDenied?'DENIED':ac==='pending'?'PENDING':isCmp?'DONE':null;
+            // A permission event is about the question, not the tool call, so
+            // it is labelled as such — the tool itself is in the detail.
+            const evType=ev.type==='PermissionRequest'?'Permission':isDenied?'Permission':(ev.tool||ev.type);
             return html`
               <div className=${evCls} key=${i}>
                 <span className="ev-time">${clockTime(ev.time)}</span>
-                <span className="ev-type">${ev.tool||ev.type}</span>
+                <span className="ev-type">${evType}</span>
                 <span className="ev-detail" title=${ev.detail||''}>${ev.detail||''}</span>
                 ${tagText&&html`<span className=${`ev-tag ${tagCls}`}>${tagText}</span>`}
               </div>

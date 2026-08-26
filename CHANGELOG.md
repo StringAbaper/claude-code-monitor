@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.7.5 (2026-08-26)
+
+### Fix: a session stayed on "Permission" after its card was answered
+
+Answering a card let the tool run, but nothing put the session back to working — that only happened when `PostToolUse` arrived. For a command that takes minutes, the sidebar tile sat on **Permission** the whole time, and the tab badge stayed amber, both claiming a human was still needed.
+
+Answering now settles the session immediately, and the tile goes back to what the tool is actually doing.
+
+- A session with another card still pending stays on **Permission** — parallel tool calls can raise more than one
+- A card cancelled because its hook died does *not* count as an answer: Claude Code is still holding its own prompt open, so the session really is still waiting
+
 ## v1.7.4 (2026-08-26)
 
 ### Fix: an answered card could be swept away before the hook read the answer

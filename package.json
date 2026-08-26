@@ -1,6 +1,6 @@
 {
   "name": "claude-code-monitor",
-  "version": "1.7.4",
+  "version": "1.7.5",
   "description": "Real-time monitor for Claude Code sessions across multiple IDEs and terminals",
   "main": "server.js",
   "scripts": {

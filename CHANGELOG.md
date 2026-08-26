@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.8.0 (2026-08-26)
+
+### Start on login (Windows)
+
+```bash
+npm run autostart
+```
+
+Registers a scheduled task that starts the monitor when you log in. No administrator rights: the task belongs to your own account with an interactive logon type, so it never asks for a password.
+
+- **Runs in your interactive session**, not as a service — Focus Window drives windows on your desktop, which a task in session 0 cannot reach
+- **No console window**: launched through a generated `data/start-hidden.vbs` shim, with output to `data/server.log`
+- The shim *waits* for the server instead of firing and forgetting, so the task stays running for as long as the server does
+- A second trigger re-runs the task every 5 minutes as a watchdog. While the server is up the repeat is a no-op (`MultipleInstances IgnoreNew`); when it has died, the next repeat brings it back. Task Scheduler's own *restart on failure* setting reads as if it would do this and does not — a task whose action exits with a failure code stays stopped, measured as nothing restarting in over two minutes
+- `autostart:status` reports the task state, who holds the port, and the tail of the log; `autostart:restart` hands the port over cleanly; `autostart:remove` unregisters it
+- Not implemented for macOS/Linux yet — the script prints the command to drop into a launchd agent or a `systemd --user` unit
+
+A second instance now exits with `Port 7888 is already in use` instead of an unhandled stack trace, which is a normal thing to hit once something starts the server for you.
+
 ## v1.7.5 (2026-08-26)
 
 ### Fix: a session stayed on "Permission" after its card was answered

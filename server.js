@@ -169,6 +169,18 @@ function getLanIP() {
   return "unknown";
 }
 
+// Without this a second instance dies on an unhandled 'error' event and
+// dumps a stack trace. It is a normal thing to hit now that the server can
+// be started at logon by a scheduled task while one is already running.
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`  Port ${PORT} is already in use — another Claude Code Monitor is probably running.`);
+  } else {
+    console.error("  [server] listen failed:", err.message);
+  }
+  process.exit(1);
+});
+
 server.listen(PORT, "0.0.0.0", () => {
   const lanIP = getLanIP();
   const proto = USE_HTTPS ? "https" : "http";

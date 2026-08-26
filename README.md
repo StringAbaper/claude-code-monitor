@@ -139,6 +139,33 @@ Now use Claude Code normally in any VS Code window or terminal — sessions will
 | `npm run install-hooks` | Install hooks into `~/.claude/settings.json` |
 | `npm run uninstall-hooks` | Remove hooks from `~/.claude/settings.json` |
 | `npm run deploy` | Generate deployment packages for server + client |
+| `npm run autostart` | Start the monitor automatically when you log in (Windows) |
+| `npm run autostart:status` | Is the task registered, is the server up, last log lines |
+| `npm run autostart:restart` | Restart the server through the task |
+| `npm run autostart:remove` | Remove the scheduled task |
+
+### Start on login (Windows)
+
+```bash
+npm run autostart
+```
+
+Registers a scheduled task that starts the monitor when you log in. No administrator rights are needed — the task belongs to your own account and uses an interactive logon type, so it never asks for a password.
+
+Two things shape how it is set up:
+
+- **It runs in your interactive session, not as a background service.** Focus Window drives windows on your desktop, and a task running in session 0 cannot reach them.
+- **No console window.** The task launches through a generated `data/start-hidden.vbs` shim. Server output goes to `data/server.log`, rewritten on each start.
+
+The shim waits for the server rather than firing and forgetting, so the task stays running for as long as the server does. A second trigger re-runs the task every 5 minutes as a watchdog: while the server is up the repeat is a no-op (the task is already running, and `MultipleInstances IgnoreNew` drops it), and when the server has died the next repeat brings it back.
+
+> Task Scheduler's own *restart on failure* setting is not used here. It reads as if it would do the same and does not — a task whose action exits with a failure code stays stopped. Measured: nothing restarted in over two minutes.
+
+`npm run autostart:status` shows the task state, who holds the port, and the tail of the log.
+
+Re-run `npm run autostart` after moving the repository or changing your Node installation: the absolute paths are baked into the shim.
+
+macOS and Linux are not covered yet; the script prints the command to put in a launchd agent or a `systemd --user` unit.
 
 ### Dashboard Controls
 

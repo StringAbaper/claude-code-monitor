@@ -531,8 +531,11 @@ function SidebarItem({s, selected, approvalCount, canFocus, onFocus, onClick}){
 function ApprovalCard({a,onDecide}){
   const[elapsed,setElapsed]=useState(0);
   useEffect(()=>{const t=setInterval(()=>setElapsed((Date.now()-a.createdAt)/1e3|0),500);return()=>clearInterval(t)},[a.createdAt]);
-  const expired=elapsed>120;
-  const tc=expired?'expired':elapsed>90?'warn':'';
+  // No client-side expiry: a card is on screen only while the hook behind
+  // it is still waiting, so its buttons always work. It used to grey itself
+  // out after two minutes while Claude Code was still holding the prompt
+  // open — clicking Allow then did nothing at all. The timer just ages.
+  const tc=elapsed>300?'expired':elapsed>90?'warn':'';
   return html`
     <div className="ab-card">
       <div className="ab-card-top">
@@ -542,10 +545,10 @@ function ApprovalCard({a,onDecide}){
       <div className="ab-desc">${a.description}</div>
       <div className="ab-actions">
         <div className="ab-btns">
-          <button className="btn-allow" onClick=${()=>onDecide(a.id,'allow')} disabled=${expired}>Allow</button>
-          <button className="btn-deny" onClick=${()=>onDecide(a.id,'deny')} disabled=${expired}>Deny</button>
+          <button className="btn-allow" onClick=${()=>onDecide(a.id,'allow')}>Allow</button>
+          <button className="btn-deny" onClick=${()=>onDecide(a.id,'deny')}>Deny</button>
         </div>
-        <span className=${`ab-timer ${tc}`}>${expired?'Expired':elapsed+'s'}</span>
+        <span className=${`ab-timer ${tc}`}>${elapsed>=60?Math.floor(elapsed/60)+'m '+(elapsed%60)+'s':elapsed+'s'}</span>
       </div>
     </div>
   `;

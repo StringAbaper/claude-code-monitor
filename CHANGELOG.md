@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.7.3 (2026-08-26)
+
+### Fix: an approval card could die while its prompt was still waiting
+
+A card was swept away two minutes after it appeared. Claude Code holds a permission prompt open for as long as it takes — so stepping away from the desk meant coming back to a prompt still waiting in the terminal and no card left on the dashboard to answer it with. Clicking **Allow** on a card in its last ten seconds did nothing either: the buttons greyed themselves out at the two-minute mark and the request was dropped ten seconds later.
+
+Seen in a real session: a prompt raised at 13:17:10 was answered in the terminal at 13:22:27, five minutes later. The card had been gone since 13:19:20.
+
+A card now lives exactly as long as the hook behind it is still asking:
+
+- The hook polls every 400 ms; the server drops a card only once those polls stop for 15 s, which means the hook process is gone — timed out, aborted, or the prompt was answered in the terminal
+- The buttons never grey out. A card on screen is always answerable
+- The four timeouts that governed this were mutually inconsistent (card 120 s, polling 120 s, hook process 180 s, hook timeout in `settings.json` 300 s). They are now one ordered chain: poll 9 min < process exit 9.5 min < hook timeout 10 min
+- The card timer reads `4m 12s` past a minute instead of `252s`
+
+**Re-run `node install-hooks.js` after upgrading** — the hook timeout in `settings.json` changes.
+
+### Tests
+
+- New `lib/approval-flow.test.js`: the whole remote-approval loop over real HTTP — event in, card raised, answered, decision read back — including the lifetime rules in both directions. The regression test fails against the old two-minute rule.
+
 ## v1.7.2 (2026-08-26)
 
 ### A dot on the browser tab

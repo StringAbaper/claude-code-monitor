@@ -73,6 +73,8 @@ When "Remote Approval" is enabled, a permission Claude Code is about to ask you 
 
 If nobody answers on the dashboard, the hook stays silent and Claude Code falls back to its own prompt in the terminal — the terminal prompt is live the whole time, so either side can answer.
 
+A card stays answerable for as long as the hook behind it is still waiting (up to 9 minutes, then Claude Code's own prompt takes over). It disappears within ~15 seconds of that hook going away — because it was answered in the terminal, or because Claude Code timed it out. There is no separate card expiry: if a card is on screen, its buttons work.
+
 `PermissionRequest` fires **only** on the ask path. A tool call that a permission rule already allows, or that the session's permission mode settles on its own, never reaches the dashboard — which is the point. Safe/read-only tools (Read, Glob, Grep, TodoWrite, etc.) are skipped as well, and so is `AskUserQuestion`, whose prompt needs a choice rather than an allow/deny.
 
 The session's **permission mode** is shown in the dashboard (sidebar badge + `Permissions` row), because it decides whether approvals can happen at all:

@@ -30,7 +30,16 @@ const PORT = parseInt(parsed.port) || 7888;
 const USE_HTTPS = parsed.protocol === "https:";
 const httpModule = USE_HTTPS ? https : http;
 const POLL_INTERVAL = 400;
-const MAX_POLL_MS = 120_000; // 2 minutes
+// How long the dashboard gets to answer. A permission prompt in the
+// terminal waits for as long as it takes, so this is about how long the
+// monitor stays a usable way to answer one — two minutes was short enough
+// that stepping away meant coming back to a card that had already gone.
+//
+// These three must stay ordered, or the outer bound silently wins:
+//   poll (9m) < this process's own safety exit (9.5m) < the timeout
+//   install-hooks.js writes into settings.json (10m)
+const MAX_POLL_MS = 540_000;
+const SAFETY_EXIT_MS = 570_000;
 
 // API token comes exclusively from the env var that install-hooks.js
 // bakes into ~/.claude/settings.json. The previous .monitor-token file
@@ -42,8 +51,10 @@ const API_TOKEN = process.env.CLAUDE_MONITOR_TOKEN || "";
 const CAN_INTERCEPT =
   !OBSERVE_ONLY && (EVENT_TYPE === "PermissionRequest" || EVENT_TYPE === "PreToolUse");
 
-// Safety timeout: 3min while a remote approval may be in flight, 5s otherwise
-setTimeout(() => process.exit(0), CAN_INTERCEPT ? 180_000 : 5_000);
+// Safety timeout: generous while a remote approval may be in flight, 5s
+// otherwise. Exiting without output lets Claude Code fall through to its
+// own prompt, which has been on screen the whole time.
+setTimeout(() => process.exit(0), CAN_INTERCEPT ? SAFETY_EXIT_MS : 5_000);
 
 // ── HTTP helpers (promise-based) ────────────
 

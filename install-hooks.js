@@ -46,8 +46,10 @@ const HOOK_EVENTS = [
 // PermissionRequest fires only when Claude Code is actually about to ask
 // the user, so it is the one hook that may hold a tool open while the
 // dashboard answers. Everything else reports and gets out of the way.
+// Must stay above hook-handler.js's own poll and safety-exit bounds, or
+// Claude Code kills the hook while the dashboard still had time to answer.
 const APPROVAL_EVENT = "PermissionRequest";
-const APPROVAL_TIMEOUT_MS = 300_000;
+const APPROVAL_TIMEOUT_MS = 600_000;
 const REPORT_TIMEOUT_MS = 5_000;
 
 // Read existing settings

@@ -9,6 +9,7 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 ## Features
 
 - **Multi-session monitoring** — See all active Claude Code sessions in one dashboard, across IDEs and terminals
+- **Named by project, not by cwd** — A tile is labelled with the directory the session was launched in, so it keeps its name while Claude `cd`s around; the current directory trails behind it, dimmed, only when the session has wandered off
 - **Session titles** — Each session shows its first user prompt as a title (like VS Code tabs). Click to rename inline, syncs to every connected dashboard
 - **Remote approval** — Approve or deny tool permission requests directly from the dashboard without switching windows
 - **Auto-approve** — Optionally auto-approve all permission requests (with safety confirmation)

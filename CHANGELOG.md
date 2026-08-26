@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.9.0 (2026-08-26)
+
+### Sessions are named after their project, not after wherever they are standing
+
+A tile was labelled with the basename of `cwd` as it arrived on the last hook event — and `cwd` moves. A session that started in `Projects/ABAP/SAPTools` and read a file under `~/.claude/skills` became a tile called **skills**; one that stepped into `app/front` became **front**. The identity of a tile changed under the user for the most incidental of reasons, which is exactly what a list of a dozen sessions cannot afford.
+
+The tile now carries the directory the session was **launched** in, and the directory it has since walked into trails behind it, dimmed, only while that is somewhere else:
+
+```
+● claude-code-monitor › docs                WORKING
+  add the project root to the tile title
+```
+
+- The launch directory comes from `CLAUDE_PROJECT_DIR`, which Claude Code exports to every hook. Installs whose hook payload arrives without it fall back to the first `cwd` recorded in the session transcript — read once, on `SessionStart` / `UserPromptSubmit`, never on the per-tool events
+- With neither available, the first `cwd` the monitor ever sees for a session sticks instead of following it around. A root reported later still corrects a guess made that way, which is what happens when the monitor is started in the middle of a session
+- Approval cards and desktop notifications name the project too — a card headed **skills** told you nothing about which session was asking
+- **Focus Window** searches for the launch directory first: an editor window is titled after the workspace it opened, so a session that has cd'd elsewhere is now found by the project it belongs to
+- The detail panel keeps both — **Path** is the project root, and a **Current dir** row appears only when the session is somewhere else
+- Sessions saved by an older version keep working: their last known `cwd` becomes their root on load, and the next hook event corrects it
+
 ## v1.8.0 (2026-08-26)
 
 ### Start on login (Windows)

@@ -223,6 +223,44 @@ function parseTranscriptUsage(sessionId, cwd) {
   }
 }
 
+// ── Project root ────────────────────────────
+// `cwd` is wherever the session happens to be standing when the hook fires,
+// and it moves as Claude cds around, so it is a poor name for a session.
+// The launch directory does not move: Claude Code hands it to hooks as
+// CLAUDE_PROJECT_DIR, and it is also the first cwd recorded in the
+// transcript — the fallback for installs whose env var is missing.
+
+function firstTranscriptCwd(transcriptPath) {
+  if (!transcriptPath || typeof transcriptPath !== "string") return "";
+  let fd;
+  try {
+    fd = fs.openSync(transcriptPath, "r");
+    const buf = Buffer.alloc(64 * 1024);
+    const read = fs.readSync(fd, buf, 0, buf.length, 0);
+    for (const line of buf.subarray(0, read).toString("utf8").split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const entry = JSON.parse(line);
+        if (typeof entry.cwd === "string" && entry.cwd) return entry.cwd;
+      } catch {} // the head of a transcript ends mid-line; keep reading
+    }
+  } catch {} finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch {} }
+  }
+  return "";
+}
+
+// The env var is free to read, so it goes out on every event. The transcript
+// fallback costs a read, so it rides only the two low-frequency events —
+// enough, because the server keeps the first root it is told.
+function detectProjectDir(data) {
+  if (process.env.CLAUDE_PROJECT_DIR) return process.env.CLAUDE_PROJECT_DIR;
+  if (EVENT_TYPE === "SessionStart" || EVENT_TYPE === "UserPromptSubmit") {
+    return firstTranscriptCwd(data.transcript_path);
+  }
+  return "";
+}
+
 // ── Ancestor PIDs (Windows) ─────────────────
 // Walk the parent-process chain of this hook process: shell → claude →
 // user shell → terminal (WindowsTerminal.exe / Code.exe / ...). The server
@@ -317,6 +355,11 @@ process.stdin.on("end", () => {
       // Tells the server this install has a PermissionRequest hook, so it
       // must not raise an approval from PreToolUse as well.
       if (OBSERVE_ONLY) data.observe_only = true;
+
+      // The directory the session was launched in, so the dashboard can
+      // label it by its project rather than by wherever it has cd'd to.
+      const projectDir = detectProjectDir(data);
+      if (projectDir) data.project_dir = projectDir;
 
       // Attach ancestor pids so the server can focus the exact window
       if (

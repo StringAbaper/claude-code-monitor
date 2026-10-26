@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.10.0 (2026-10-26)
+
+### Mini window, always on top
+
+A small frameless window that stays above everything else, so the sessions can be watched from the corner of the screen while working in another application. Open it with `⧉` in the dashboard's sidebar header, or `npm run mini`.
+
+- The live sessions, ordered by what needs you first: waiting on a permission, then working, then idle — each with its current tool or activity
+- Pending approvals on top, with **Allow** / **Deny**
+- A click on a session focuses its window, same as `↗` on a sidebar tile (only for sessions on the machine running the server)
+- No title bar, no address bar, 220 px wide. Drag it anywhere — it remembers where and grows upward from its bottom edge, so it can sit just above the taskbar. Right-click to open the dashboard or close it
+- It runs on its own: closing the dashboard, or the terminal it was started from, leaves it open
+
+Windows only: it is PowerShell + WPF, both part of the OS, so there is nothing to install. It opens on the desktop of the machine running the server, so `⧉` only appears on a dashboard opened there, and only on a Windows server.
+
+A browser Picture-in-Picture window was tried first and dropped: the browser keeps its own title bar on it, opens it only from a click, and closes it with the dashboard tab.
+
+The widget polls a new `GET /api/mini` endpoint once a second: live sessions and pending approvals, trimmed to what it draws. The full session list carries every stopped session with its event log and usage history — a megabyte after a few weeks, too much to parse in PowerShell every second. `POST /api/mini/open` is what `⧉` calls.
+
 ## v1.9.1 (2026-08-26)
 
 ### Focus the window the session is actually in

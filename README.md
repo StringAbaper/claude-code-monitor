@@ -11,6 +11,7 @@ Real-time dashboard for monitoring all active [Claude Code](https://docs.anthrop
 - **Multi-session monitoring** — See all active Claude Code sessions in one dashboard, across IDEs and terminals
 - **Named by project, not by cwd** — A tile is labelled with the directory the session was launched in, so it keeps its name while Claude `cd`s around; the current directory trails behind it, dimmed, only when the session has wandered off
 - **Session titles** — Each session shows its first user prompt as a title (like VS Code tabs). Click to rename inline, syncs to every connected dashboard
+- **Mini window** — A small frameless always-on-top window listing the live sessions, with Allow / Deny on pending approvals and a click on a session to focus its window (Windows)
 - **Remote approval** — Approve or deny tool permission requests directly from the dashboard without switching windows
 - **Auto-approve** — Optionally auto-approve all permission requests (with safety confirmation)
 - **Window focus** — Jump to the session's IDE or terminal window from the dashboard (cross-platform, **local-only**: button only appears when the dashboard is opened on the same machine that runs the session)
@@ -140,6 +141,7 @@ Now use Claude Code normally in any VS Code window or terminal — sessions will
 | `npm run install-hooks` | Install hooks into `~/.claude/settings.json` |
 | `npm run uninstall-hooks` | Remove hooks from `~/.claude/settings.json` |
 | `npm run deploy` | Generate deployment packages for server + client |
+| `npm run mini` | Open the frameless always-on-top mini window (Windows) |
 | `npm run autostart` | Start the monitor automatically when you log in (Windows) |
 | `npm run autostart:status` | Is the task registered, is the server up, last log lines |
 | `npm run autostart:restart` | Restart the server through the task |
@@ -177,6 +179,23 @@ macOS and Linux are not covered yet; the script prints the command to put in a l
 - **Light/Dark mode** — Toggle theme (sun/moon button in header)
 - **Focus Window** / `↗` on a sidebar tile — Bring the session's IDE/terminal window to the foreground, alt-tab style (window state untouched)
 - **Clear** — Remove stopped sessions from the list
+- **Mini window** (`⧉` in the sidebar header) — Open the desktop mini window described below
+
+### Mini window (Windows)
+
+```bash
+npm run mini
+```
+
+or `⧉` in the dashboard's sidebar header. A frameless widget, 220 px wide, that stays on top of every other window: no title bar, no address bar, nothing but the sessions — the live ones, waiting on a permission first, then working, then idle, each with its current activity, and pending approvals with **Allow** / **Deny**. It runs on its own: closing the dashboard or the terminal it was started from leaves it open.
+
+The window opens on the desktop of the machine running the server, so `⧉` only appears on a dashboard opened there (`localhost`), and only when the server runs on Windows.
+
+- **Drag** it anywhere; it remembers where (`data/mini.json`) and grows upward from its bottom edge, so it can sit just above the taskbar
+- **Click** a session to bring its window to the front
+- **Right-click** to open the dashboard or close the widget
+
+It is PowerShell + WPF, both part of Windows, so there is nothing to install. It reads the API token from `data/config.json` and polls `GET /api/mini` once a second — a trimmed list of live sessions and pending approvals, a few hundred bytes where the full session list runs to a megabyte. Opening it again while it is open does nothing; errors go to `data/mini.log`, since it has no console.
 
 ## LAN / Multi-Machine Setup
 

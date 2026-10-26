@@ -273,6 +273,8 @@ body,.sidebar,.panel,.detail,.sidebar-item,.approval-card,.burn-pill,.btn-xs,.to
 .btn-settings{background:none;border:1px solid var(--border);color:var(--text-dim);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
 .btn-settings:hover{color:var(--purple);border-color:rgba(139,92,246,0.3)}
 .btn-settings.active{color:var(--purple);border-color:var(--purple);background:var(--purple-bg)}
+.btn-mini{background:none;border:1px solid var(--border);color:var(--text-dim);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.btn-mini:hover{color:var(--purple);border-color:rgba(139,92,246,0.3)}
 
 /* ── Settings Panel ── */
 .settings{flex:1;overflow-y:auto;padding:24px}
@@ -1076,6 +1078,7 @@ function App(){
   const[theme,setTheme]=useState(()=>localStorage.getItem('cm-theme')||(window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'));
   const[mNames,setMNames]=useState({});
   const[serverHost,setServerHost]=useState('');
+  const[miniWindow,setMiniWindow]=useState(false);
   const[showSettings,setShowSettings]=useState(false);
   const[settings,setSettings]=useState({stoppedCleanupMinutes:1440,showTokenChart:true,autoArchiveStopped:false});
   const[showArchived,setShowArchived]=useState(false);
@@ -1149,6 +1152,7 @@ function App(){
       if(d.settings){setRemoteApproval(d.settings.remoteApprovalEnabled);setAutoApprove(!!d.settings.autoApproveEnabled);setSettings(d.settings);if(d.settings.uiSkin&&d.settings.uiSkin!==uiSkin&&['default','linear','sentry','raycast','claude'].includes(d.settings.uiSkin)){setUiSkinLocal(d.settings.uiSkin);localStorage.setItem('cm-skin',d.settings.uiSkin);const link=document.getElementById('skin-css');if(link)link.href=d.settings.uiSkin==='default'?'':'/skins/'+d.settings.uiSkin+'.css'}}
       if(d.machineNames)setMNames(d.machineNames);
       if(d.serverHostname)setServerHost(d.serverHostname);
+      if(d.miniWindow!==undefined)setMiniWindow(!!d.miniWindow);
       if(d.updateState)setUpdateInfo(d.updateState);
       if(d.anomalyState)setAnomalyState(d.anomalyState);
       if(d.anomalyAlerts&&d.anomalyAlerts.length){
@@ -1191,6 +1195,7 @@ function App(){
   const decideApproval=useCallback((id,dec)=>{fetch('/api/pending/'+id+'/decide',{method:'POST',headers:authH,body:JSON.stringify({decision:dec})}).catch(()=>{})},[authToken]);
   const renameMachine=useCallback((hostname,name)=>{fetch('/api/machines/'+encodeURIComponent(hostname)+'/rename',{method:'POST',headers:authH,body:JSON.stringify({name})}).catch(()=>{})},[authToken]);
   const renameSession=useCallback((id,title)=>{fetch('/api/sessions/'+id+'/title',{method:'POST',headers:authH,body:JSON.stringify({title})}).catch(()=>{})},[authToken]);
+  const openMini=useCallback(()=>{fetch('/api/mini/open',{method:'POST',headers:authH}).catch(()=>{})},[authToken]);
 
   // Auth guards (after all hooks)
   if(!authChecked)return html`<div className="login-screen"><div style=${{color:'var(--text-muted)'}}>Loading...</div></div>`;
@@ -1223,6 +1228,9 @@ function App(){
         <div className="sidebar-header">
           <div className="logo"><span>Claude Code</span> Monitor</div>
           <div className="header-right">
+            ${miniWindow&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&html`
+              <button className="btn-mini" onClick=${openMini} title="Open the mini window — stays on top of every other window">⧉</button>
+            `}
             <button className=${`btn-settings${showSettings?' active':''}`} onClick=${()=>{setShowSettings(!showSettings);if(!showSettings){setSelectedId(null);setMobileDetail(true)}}} title="Settings">\u2699</button>
             <button className="btn-logout" onClick=${logout} title="Logout">⏻</button>
             ${!connected&&html`<div className="conn-dot offline" title="Disconnected — trying to reconnect"></div>`}

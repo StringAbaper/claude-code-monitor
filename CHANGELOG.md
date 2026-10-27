@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.10.1 (2026-10-27)
+
+### Mini window: anchored at the top, three sessions then a scroll
+
+The mini window was anchored by its bottom edge, so each new session pushed it upward — fine above the taskbar, awkward anywhere else. It is now anchored by its top edge and opens in the top-right corner, and the session list stops growing at three sessions: past that it scrolls, with a 4 px scroll bar instead of the stock 17 px one.
+
+- Pending approvals sit above the list and never scroll: a question hidden below the fold is one nobody answers
+- The cap follows the rows as they stand — a session with an activity line is taller than one without
+- A position saved by 1.10.0 is converted on first start, keeping the window's top edge where it was
+
 ## v1.10.0 (2026-10-26)
 
 ### Mini window, always on top
@@ -9,7 +19,7 @@ A small frameless window that stays above everything else, so the sessions can b
 - The live sessions, ordered by what needs you first: waiting on a permission, then working, then idle — each with its current tool or activity
 - Pending approvals on top, with **Allow** / **Deny**
 - A click on a session focuses its window, same as `↗` on a sidebar tile (only for sessions on the machine running the server)
-- No title bar, no address bar, 220 px wide. Drag it anywhere — it remembers where and grows upward from its bottom edge, so it can sit just above the taskbar. Right-click to open the dashboard or close it
+- No title bar, no address bar, 220 px wide. Drag it anywhere — it remembers where. Right-click to open the dashboard or close it
 - It runs on its own: closing the dashboard, or the terminal it was started from, leaves it open
 
 Windows only: it is PowerShell + WPF, both part of the OS, so there is nothing to install. It opens on the desktop of the machine running the server, so `⧉` only appears on a dashboard opened there, and only on a Windows server.

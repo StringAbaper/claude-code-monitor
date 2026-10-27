@@ -105,13 +105,46 @@ $win.FontFamily = 'Segoe UI'; $win.Title = 'Claude Code Monitor'
 $frame = New-Object System.Windows.Controls.Border
 $frame.Background = $C.bg; $frame.BorderBrush = $C.border; $frame.BorderThickness = 1
 $frame.CornerRadius = 8; $frame.Padding = 4
+# Approvals sit above the session list and never scroll: one hidden below
+# the fold would be a question nobody sees.
+$approvalsPanel = New-Object System.Windows.Controls.StackPanel
 $scroll = New-Object System.Windows.Controls.ScrollViewer
-$scroll.VerticalScrollBarVisibility = 'Auto'; $scroll.MaxHeight = 520
+$scroll.VerticalScrollBarVisibility = 'Auto'
 # A focusable ScrollViewer takes focus on a press and marks it handled, so
 # the press never reaches the window: no click, no drag.
 $scroll.Focusable = $false
+# The stock scroll bar is 17 px wide, most of a 220 px window.
+$scroll.Resources.Add([System.Windows.Controls.Primitives.ScrollBar], [Windows.Markup.XamlReader]::Parse(@'
+<Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" TargetType="ScrollBar">
+  <Setter Property="Width" Value="4"/>
+  <Setter Property="MinWidth" Value="4"/>
+  <Setter Property="Margin" Value="2,0,0,0"/>
+  <Setter Property="Template">
+    <Setter.Value>
+      <ControlTemplate TargetType="ScrollBar">
+        <Track Name="PART_Track" IsDirectionReversed="True">
+          <Track.Thumb>
+            <Thumb>
+              <Thumb.Template>
+                <ControlTemplate TargetType="Thumb">
+                  <Border Background="#50FFFFFF" CornerRadius="2"/>
+                </ControlTemplate>
+              </Thumb.Template>
+            </Thumb>
+          </Track.Thumb>
+        </Track>
+      </ControlTemplate>
+    </Setter.Value>
+  </Setter>
+</Style>
+'@))
 $list = New-Object System.Windows.Controls.StackPanel
-$scroll.Content = $list; $frame.Child = $scroll; $win.Content = $frame
+$scroll.Content = $list
+$content = New-Object System.Windows.Controls.StackPanel
+[void]$content.Children.Add($approvalsPanel); [void]$content.Children.Add($scroll)
+$frame.Child = $content; $win.Content = $frame
+# Past this many sessions the list scrolls instead of growing.
+$visibleRows = 3
 
 $menu = New-Object System.Windows.Controls.ContextMenu
 $miOpen = New-Object System.Windows.Controls.MenuItem; $miOpen.Header = 'Open dashboard'
@@ -122,20 +155,36 @@ $miClose.Add_Click({ $win.Close() })
 $win.ContextMenu = $menu
 
 # ---- Position ----
-# The window grows upward from its bottom edge, so a widget parked above
-# the taskbar stays there however many sessions it lists.
-$script:anchor = $null
-try { $script:anchor = Get-Content $posFile -Raw | ConvertFrom-Json } catch {}
+# Anchored by its top-left corner: the window grows downward, and with the
+# list capped at a few rows it never grows far.
+function Save-Position {
+  try { [pscustomobject]@{ left = $win.Left; top = $win.Top } | ConvertTo-Json | Set-Content $posFile -Encoding UTF8 } catch {}
+}
+$pos = $null
+try { $pos = Get-Content $posFile -Raw | ConvertFrom-Json } catch {}
+# Up to 1.10.0 the window was anchored by its bottom edge. Its top is
+# wherever that edge minus its first height puts it, measured once.
+$script:legacyBottom = $null
+if ($pos -and $null -eq $pos.top -and $null -ne $pos.bottom) {
+  $script:legacyBottom = $pos.bottom
+  $pos = [pscustomobject]@{ left = $pos.left; top = $pos.bottom - 60 }
+}
 $vs = @{ l = [System.Windows.SystemParameters]::VirtualScreenLeft; t = [System.Windows.SystemParameters]::VirtualScreenTop
          w = [System.Windows.SystemParameters]::VirtualScreenWidth; h = [System.Windows.SystemParameters]::VirtualScreenHeight }
-if (-not $script:anchor -or $script:anchor.left -lt $vs.l -or $script:anchor.left -gt $vs.l + $vs.w - 40 -or
-    $script:anchor.bottom -lt $vs.t + 40 -or $script:anchor.bottom -gt $vs.t + $vs.h) {
+if (-not $pos -or $pos.left -lt $vs.l -or $pos.left -gt $vs.l + $vs.w - 40 -or
+    $pos.top -lt $vs.t -or $pos.top -gt $vs.t + $vs.h - 40) {
   $wa = [System.Windows.SystemParameters]::WorkArea
-  $script:anchor = [pscustomobject]@{ left = $wa.Right - $win.Width - 12; bottom = $wa.Bottom - 12 }
+  $pos = [pscustomobject]@{ left = $wa.Right - $win.Width - 12; top = $wa.Top + 12 }
+  $script:legacyBottom = $null
 }
 $win.WindowStartupLocation = 'Manual'
-$win.Left = $script:anchor.left; $win.Top = $script:anchor.bottom - 60
-$win.Add_SizeChanged({ $win.Top = $script:anchor.bottom - $win.ActualHeight })
+$win.Left = $pos.left; $win.Top = $pos.top
+$win.Add_SizeChanged({
+  if ($null -eq $script:legacyBottom) { return }
+  $win.Top = $script:legacyBottom - $win.ActualHeight
+  $script:legacyBottom = $null
+  Save-Position
+})
 
 # One handler for the whole window: a press that moves it is a drag, one
 # that does not is a click on whatever session row is under the pointer.
@@ -144,11 +193,7 @@ $win.Add_MouseLeftButtonDown({
   param($sender, $e)
   $left = $win.Left; $top = $win.Top
   try { $win.DragMove() } catch {}
-  if ($win.Left -ne $left -or $win.Top -ne $top) {
-    $script:anchor = [pscustomobject]@{ left = $win.Left; bottom = $win.Top + $win.ActualHeight }
-    try { $script:anchor | ConvertTo-Json | Set-Content $posFile -Encoding UTF8 } catch {}
-    return
-  }
+  if ($win.Left -ne $left -or $win.Top -ne $top) { Save-Position; return }
   $el = $e.OriginalSource
   while ($el -and -not ($el.Tag -is [string])) {
     try { $el = [System.Windows.Media.VisualTreeHelper]::GetParent($el) } catch { $el = $null }
@@ -178,6 +223,7 @@ function Decision-Button($label, $approvalId, $decision, $bg, $fg, $borderBrush)
 }
 
 function Render($state) {
+  $approvalsPanel.Children.Clear()
   $list.Children.Clear()
   foreach ($a in $state.approvals) {
     $card = New-Object System.Windows.Controls.Border
@@ -193,7 +239,7 @@ function Render($state) {
     [void]$btns.Children.Add((Decision-Button 'Deny' $a.id 'deny' $C.transparent $C.red $C.red))
     [void]$body.Children.Add($btns)
     $card.Child = $body
-    [void]$list.Children.Add($card)
+    [void]$approvalsPanel.Children.Add($card)
   }
   foreach ($s in $state.sessions) {
     $row = New-Object System.Windows.Controls.Border
@@ -225,6 +271,18 @@ function Render($state) {
     $row.Child = $body
     [void]$list.Children.Add($row)
   }
+  # Rows are one or two lines tall, so the cap is the height of the first
+  # few as they stand, not a fixed number of pixels.
+  $cap = [double]::PositiveInfinity
+  if ($list.Children.Count -gt $visibleRows) {
+    $cap = 0
+    $inf = New-Object System.Windows.Size([double]::PositiveInfinity, [double]::PositiveInfinity)
+    for ($i = 0; $i -lt $visibleRows; $i++) {
+      $list.Children[$i].Measure($inf)
+      $cap += $list.Children[$i].DesiredSize.Height
+    }
+  }
+  $scroll.MaxHeight = $cap
   if (-not $state.approvals -and -not $state.sessions) {
     $note = Text $(if ($state.error) { $state.error } else { 'No active session' }) 11 $(if ($state.error) { $C.red } else { $C.dim })
     $note.Margin = '6,3'

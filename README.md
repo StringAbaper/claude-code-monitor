@@ -191,7 +191,8 @@ or `⧉` in the dashboard's sidebar header. A frameless widget, 220 px wide, tha
 
 The window opens on the desktop of the machine running the server, so `⧉` only appears on a dashboard opened there (`localhost`), and only when the server runs on Windows.
 
-- **Drag** it anywhere; it remembers where (`data/mini.json`) and grows upward from its bottom edge, so it can sit just above the taskbar
+- **Drag** it anywhere; it remembers where (`data/mini.json`). It is anchored by its top edge and opens in the top-right corner the first time
+- **Scroll** the session list past three sessions — the list stops growing there. Pending approvals stay above it and never scroll out of sight
 - **Click** a session to bring its window to the front
 - **Right-click** to open the dashboard or close the widget
 

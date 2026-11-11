@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.10.2 (2026-11-11)
+
+### Mini window: no longer closes when the server is slow
+
+A request that ran past its 3 s timeout ended as a cancelled task, which carries no exception; reading that missing exception threw, and the error closed the window. A timeout is now reported as one, and the window stays open through whatever goes wrong.
+
+- The widget talks to `127.0.0.1` instead of `localhost`. `localhost` resolves to `::1` first, the server listens on IPv4 only, and Windows retries the refused connection for about 2 s before falling back — 2.1 s for a new connection, against 3 ms
+- An error during a poll is logged and the next second polls again. Before, the timer was never re-armed after a tick that threw, so the window would have frozen on its last state
+- An error in any other handler (a click, a drag) is logged in `data/mini.log` instead of closing the window
+- **Open dashboard** still opens `localhost`, where the browser keeps its login
+
 ## v1.10.1 (2026-10-27)
 
 ### Mini window: anchored at the top, three sessions then a scroll

@@ -28,7 +28,10 @@ try {
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Net.Http
 
 $port = if ($env:PORT) { $env:PORT } else { 7888 }
-$baseUrl = "http://localhost:$port"
+# Not localhost: it resolves to ::1 first, the server listens on IPv4 only,
+# and Windows retries the refused connection for about 2 s before falling
+# back - most of the 3 s timeout, on every new connection.
+$baseUrl = "http://127.0.0.1:$port"
 $token = (Get-Content (Join-Path $dataDir 'config.json') -Raw | ConvertFrom-Json).apiToken
 
 $http = New-Object System.Net.Http.HttpClient
@@ -37,6 +40,13 @@ $http.DefaultRequestHeaders.Authorization = New-Object System.Net.Http.Headers.A
 
 function Log($msg) {
   try { "$(Get-Date -Format s) $msg" | Add-Content $logFile } catch {}
+}
+
+# Why a request failed. A timed-out one ends Canceled, with no Exception.
+function Failure($task) {
+  if ($task.Status -eq 'Canceled') { return 'timed out' }
+  if ($task.Exception) { return $task.Exception.ToString() }
+  return [string]$task.Status
 }
 
 # Requests in flight, checked by the poll timer: the window never waits
@@ -50,7 +60,7 @@ function Check-Inflight {
   foreach ($r in @($script:inflight)) {
     if (-not $r.task.IsCompleted) { continue }
     $script:inflight.Remove($r)
-    if ($r.task.Status -ne 'RanToCompletion') { Log "POST $($r.path) failed: $($r.task.Exception.InnerException.Message)"; continue }
+    if ($r.task.Status -ne 'RanToCompletion') { Log "POST $($r.path) failed: $(Failure $r.task)"; continue }
     $res = $r.task.Result
     $text = $res.Content.ReadAsStringAsync().Result
     # Focus answers 200 with ok:false when it found no window to raise.
@@ -148,7 +158,8 @@ $visibleRows = 3
 
 $menu = New-Object System.Windows.Controls.ContextMenu
 $miOpen = New-Object System.Windows.Controls.MenuItem; $miOpen.Header = 'Open dashboard'
-$miOpen.Add_Click({ Start-Process $baseUrl })
+# The browser keeps its login cookie for localhost, and copes with ::1.
+$miOpen.Add_Click({ Start-Process "http://localhost:$port" })
 $miClose = New-Object System.Windows.Controls.MenuItem; $miClose.Header = 'Close'
 $miClose.Add_Click({ $win.Close() })
 [void]$menu.Items.Add($miOpen); [void]$menu.Items.Add($miClose)
@@ -298,6 +309,11 @@ $script:lastSig = $null
 $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(1)
 $timer.Add_Tick({
+  # A tick that throws is never re-armed: the window would freeze on its
+  # last state. Whatever goes wrong, log it and try again next second.
+  try { Poll } catch { $script:pending = $null; Log "poll error: $($_ | Out-String)" }
+})
+function Poll {
   Check-Inflight
   if (-not $script:pending) { $script:pending = $http.GetStringAsync("$baseUrl/api/mini"); return }
   if (-not $script:pending.IsCompleted) { return }
@@ -307,7 +323,7 @@ $timer.Add_Tick({
     $state = $json | ConvertFrom-Json
     $sig = $json + '|' + (($state.sessions | ForEach-Object { Ago $_.lastActivity }) -join ',')
   } else {
-    $msg = $task.Exception.ToString()
+    $msg = Failure $task
     $err = if ($msg -match '401') { 'Bad API token - re-run npm run mini' } else { 'Monitor unreachable' }
     $state = [pscustomobject]@{ sessions = @(); approvals = @(); error = $err }
     $sig = $err
@@ -316,8 +332,17 @@ $timer.Add_Tick({
   if ($sig -eq $script:lastSig -or [System.Windows.Input.Mouse]::LeftButton -eq 'Pressed') { return }
   $script:lastSig = $sig
   Render $state
-})
+}
 $timer.Start()
+
+# An error thrown in any other handler (a click, a drag) comes out of
+# ShowDialog and ends the script: the window closes for a hiccup. Log it
+# and keep going instead.
+$win.Dispatcher.Add_UnhandledException({
+  param($sender, $e)
+  Log "handler error: $($e.Exception.ToString())"
+  $e.Handled = $true
+})
 
 Render ([pscustomobject]@{ sessions = @(); approvals = @(); error = 'Connecting...' })
 [void]$win.ShowDialog()

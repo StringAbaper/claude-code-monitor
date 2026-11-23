@@ -361,6 +361,14 @@ process.stdin.on("end", () => {
       const projectDir = detectProjectDir(data);
       if (projectDir) data.project_dir = projectDir;
 
+      // A session nobody is sitting at — `claude -p`, a script, an SDK
+      // run — so the mini window can leave it out. Claude Code sets this
+      // per session ("0" under -p even when the parent said "1"), unlike
+      // CLAUDE_CODE_ENTRYPOINT, which a child launched from a VS Code
+      // session inherits as "claude-vscode". Absent on older versions:
+      // those sessions stay counted as interactive.
+      if (process.env.CLAUDE_CODE_SESSION_ATTENDED === "0") data.headless = true;
+
       // Attach ancestor pids so the server can focus the exact window
       if (
         os.platform() === "win32" &&

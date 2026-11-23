@@ -187,7 +187,7 @@ macOS and Linux are not covered yet; the script prints the command to put in a l
 npm run mini
 ```
 
-or `⧉` in the dashboard's sidebar header. A frameless widget, 220 px wide, that stays on top of every other window: no title bar, no address bar, nothing but the sessions — the live ones, waiting on a permission first, then working, then idle, each with its current activity, and pending approvals with **Allow** / **Deny**. It runs on its own: closing the dashboard or the terminal it was started from leaves it open.
+or `⧉` in the dashboard's sidebar header. A frameless widget, 220 px wide, that stays on top of every other window: no title bar, no address bar, nothing but the sessions — the live ones, waiting on a permission first, then working, then idle, each with its current activity, and pending approvals with **Allow** / **Deny**. Only interactive sessions are listed: headless runs (`claude -p`, scripts, the Agent SDK) stay on the dashboard but are left out here, so a batch of them cannot bury the sessions you are working in. It runs on its own: closing the dashboard or the terminal it was started from leaves it open.
 
 The window opens on the desktop of the machine running the server, so `⧉` only appears on a dashboard opened there (`localhost`), and only when the server runs on Windows.
 

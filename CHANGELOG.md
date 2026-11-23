@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.10.3 (2026-11-23)
+
+### Mini window: interactive sessions only
+
+Headless runs — `claude -p`, a script fanning out a batch of them, the Agent SDK — are no longer listed in the mini window. Four of them in parallel were enough to push the sessions you are actually working in past the three visible rows. They stay on the dashboard as before.
+
+- The hook tells them apart by `CLAUDE_CODE_SESSION_ATTENDED`, which Claude Code sets per session: `0` under `-p` even when launched from an attended session. `CLAUDE_CODE_ENTRYPOINT` cannot do it — a `claude -p` started from a VS Code session inherits `claude-vscode`
+- Claude Code versions that do not set the variable keep their sessions listed, as before
+- Pending approvals are still shown whichever session they come from: they are waiting on an answer
+
 ## v1.10.2 (2026-11-11)
 
 ### Mini window: no longer closes when the server is slow
